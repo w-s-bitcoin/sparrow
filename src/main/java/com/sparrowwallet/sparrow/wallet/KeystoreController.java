@@ -97,7 +97,13 @@ public class KeystoreController extends WalletFormController implements Initiali
     private TextField derivation;
 
     @FXML
+    private Field derivationField;
+
+    @FXML
     private TextField fingerprint;
+
+    @FXML
+    private Field fingerprintField;
 
     @FXML
     private LifeHashIcon fingerprintIcon;
@@ -152,6 +158,11 @@ public class KeystoreController extends WalletFormController implements Initiali
         scanXpubQR.managedProperty().bind(scanXpubQR.visibleProperty());
         displayXpubQR.managedProperty().bind(displayXpubQR.visibleProperty());
         displayXpubQR.visibleProperty().bind(scanXpubQR.visibleProperty().not());
+
+        if(getWalletForm().getWallet().isSingleKeyWallet()) {
+            initializeSingleKeyView();
+            return;
+        }
 
         updateType(keystore.isValid() && !getWalletForm().getWallet().isValid());
 
@@ -244,6 +255,23 @@ public class KeystoreController extends WalletFormController implements Initiali
         }
     }
 
+    private void initializeSingleKeyView() {
+        selectSourcePane.setVisible(false);
+        type.setText(keystore.getSingleKey() == null ? "Single public key (watch only)" : "Single private key");
+        type.setGraphic(getTypeIcon(keystore));
+        label.setText(keystore.getLabel());
+        label.textProperty().addListener(labelChangeListener);
+        for(Node node : List.of(fingerprintField, derivationField, xpubField, spScanField, importButton, exportButton, viewSeedButton, cardServiceButtons)) {
+            node.setVisible(false);
+            if(!node.managedProperty().isBound()) {
+                node.setManaged(false);
+            }
+        }
+        viewKeyButton.setText("Reveal WIF...");
+        viewKeyButton.setTooltip(new Tooltip("Reveal the private key. Anyone with this key can spend this wallet's funds."));
+        viewKeyButton.setVisible(keystore.getSingleKey() != null);
+    }
+
     private void setXpubContext(ExtendedKey extendedKey) {
         ContextMenu contextMenu = new ContextMenu();
         MenuItem copyXPub = new MenuItem("Copy " + Network.get().getXpubHeader().getDisplayName());
@@ -326,6 +354,10 @@ public class KeystoreController extends WalletFormController implements Initiali
                 (Control c, String newValue) -> ValidationResult.fromErrorIf( c, "Label is too long", newValue.replace(" ", "").length() > Keystore.MAX_LABEL_LENGTH)
         ));
 
+        if(getWalletForm().getWallet().isSingleKeyWallet()) {
+            return;
+        }
+
         validationSupport.registerValidator(xpub, Validator.combine(
                 (Control c, String newValue) -> ValidationResult.fromErrorIf( c, Network.get().getXpubHeader().getDisplayName() + " is required", getWalletForm().getWallet().getPolicyType() != PolicyType.SINGLE_SP && newValue.trim().isEmpty()),
                 (Control c, String newValue) -> ValidationResult.fromErrorIf( c, Network.get().getXpubHeader().getDisplayName() + " is invalid", getWalletForm().getWallet().getPolicyType() != PolicyType.SINGLE_SP && !ExtendedKey.isValid(newValue)),
@@ -400,6 +432,8 @@ public class KeystoreController extends WalletFormController implements Initiali
                 return "Airgapped Wallet (" + keystore.getWalletModel().toDisplayString() + ")";
             case SW_SEED:
                 return "Software Wallet";
+            case SW_PRIVATE_KEY:
+                return "Single private key";
             case SW_WATCH:
             default:
                 return "Watch Only Wallet";
@@ -418,6 +452,8 @@ public class KeystoreController extends WalletFormController implements Initiali
                 return new Glyph(FontAwesome5.FONT_NAME, FontAwesome5.Glyph.SD_CARD);
             case SW_SEED:
                 return new Glyph(FontAwesome5.FONT_NAME, FontAwesome5.Glyph.LAPTOP);
+            case SW_PRIVATE_KEY:
+                return new Glyph(FontAwesome5.FONT_NAME, FontAwesome5.Glyph.KEY);
             case SW_WATCH:
             default:
                 return new Glyph(FontAwesome5.FONT_NAME, FontAwesome5.Glyph.EYE);
@@ -511,26 +547,42 @@ public class KeystoreController extends WalletFormController implements Initiali
 
                     if(getWalletForm().isLocked()) {
                         AppServices.showErrorDialog("Wallet Locked", "The wallet was locked before the keystore could be displayed.");
+                        copy.clearPrivate();
                         return;
                     }
 
                     Wallet decryptedWallet = decryptWalletService.getValue();
-                    showPrivate(decryptedWallet.getKeystores().get(keystoreIndex));
+                    try {
+                        showPrivate(decryptedWallet.getKeystores().get(keystoreIndex));
+                    } finally {
+                        decryptedWallet.clearPrivate();
+                    }
                 });
                 decryptWalletService.setOnFailed(workerStateEvent -> {
                     EventManager.get().post(new StorageEvent(getWalletForm().getWalletId(), TimedEvent.Action.END, "Failed"));
                     AppServices.showErrorDialog("Incorrect Password", decryptWalletService.getException().getMessage());
+                    copy.clearPrivate();
                 });
                 EventManager.get().post(new StorageEvent(getWalletForm().getWalletId(), TimedEvent.Action.START, "Decrypting wallet..."));
                 decryptWalletService.start();
+            } else {
+                copy.clearPrivate();
             }
         } else {
-            showPrivate(keystore);
+            try {
+                showPrivate(copy.getKeystores().get(keystoreIndex));
+            } finally {
+                copy.clearPrivate();
+            }
         }
     }
 
     private void showPrivate(Keystore keystore) {
-        if(keystore.hasSeed()) {
+        if(keystore.getSingleKey() != null) {
+            PrivateKeyDisplayDialog dialog = new PrivateKeyDisplayDialog(keystore);
+            dialog.initOwner(viewKeyButton.getScene().getWindow());
+            dialog.showAndWait();
+        } else if(keystore.hasSeed()) {
             SeedDisplayDialog dlg = new SeedDisplayDialog(keystore);
             dlg.initOwner(viewSeedButton.getScene().getWindow());
             dlg.showAndWait();

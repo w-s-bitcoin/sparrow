@@ -4,6 +4,7 @@ import com.sparrowwallet.drongo.policy.Policy;
 import com.sparrowwallet.drongo.wallet.DeterministicSeed;
 import com.sparrowwallet.drongo.wallet.Keystore;
 import com.sparrowwallet.drongo.wallet.MasterPrivateExtendedKey;
+import com.sparrowwallet.drongo.wallet.SingleKey;
 import com.sparrowwallet.drongo.wallet.Wallet;
 import com.sparrowwallet.sparrow.AppServices;
 import com.sparrowwallet.sparrow.EventManager;
@@ -14,6 +15,7 @@ import javafx.beans.property.BooleanProperty;
 
 import java.io.IOException;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.List;
 import java.util.Objects;
 
@@ -167,6 +169,10 @@ public class SettingsWalletForm extends WalletForm {
             if((originalKeystore.getMasterPrivateExtendedKey() == null && changedKeystore.getMasterPrivateExtendedKey() != null) || (originalKeystore.getMasterPrivateExtendedKey() != null && changedKeystore.getMasterPrivateExtendedKey() == null)) {
                 return true;
             }
+
+            if((originalKeystore.getSingleKey() == null) != (changedKeystore.getSingleKey() == null)) {
+                return true;
+            }
         }
 
         if(original.getGapLimit() != changed.getGapLimit()) {
@@ -212,6 +218,10 @@ public class SettingsWalletForm extends WalletForm {
             }
 
             if(!Objects.equals(originalKeystore.getExtendedPublicKey(), changedKeystore.getExtendedPublicKey())) {
+                return true;
+            }
+
+            if(!Arrays.equals(originalKeystore.getSinglePublicKey(), changedKeystore.getSinglePublicKey())) {
                 return true;
             }
 
@@ -264,6 +274,14 @@ public class SettingsWalletForm extends WalletForm {
                     originalKeystore.setMasterPrivateExtendedKey(changedMpek);
                     changedKeystores.add(originalKeystore);
                 }
+            }
+
+            if(originalKeystore.getSingleKey() != null && changedKeystore.getSingleKey() != null &&
+                    !Objects.equals(originalKeystore.getSingleKey().getEncryptedData(), changedKeystore.getSingleKey().getEncryptedData())) {
+                SingleKey changedKey = changedKeystore.getSingleKey().copy();
+                changedKey.setId(originalKeystore.getSingleKey().getId());
+                originalKeystore.setSingleKey(changedKey);
+                changedKeystores.add(originalKeystore);
             }
         }
 

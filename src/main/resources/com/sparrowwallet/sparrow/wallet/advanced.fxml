@@ -44,7 +44,7 @@
                         </tooltip>
                     </Label>
                 </Field>
-                <Field text="Watch addresses:">
+                <Field fx:id="watchLastField" text="Watch addresses:">
                     <ComboBox fx:id="watchLast" />
                     <HelpLabel helpText="Load deep wallets faster by limiting the number of subscriptions to previously used addresses.\nUsed addresses at lower derivation paths will not be checked for new transactions.\nThis setting will take effect in the next wallet load."/>
                 </Field>
@@ -53,4 +53,3 @@
         </GridPane>
     </center>
 </BorderPane>
-

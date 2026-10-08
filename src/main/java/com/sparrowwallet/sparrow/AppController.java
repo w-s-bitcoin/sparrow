@@ -1308,6 +1308,12 @@ public class AppController implements Initializable {
         }
     }
 
+    public void importPrivateKey(ActionEvent event) {
+        PrivateKeyImportDialog dialog = new PrivateKeyImportDialog();
+        dialog.initOwner(rootStack.getScene().getWindow());
+        dialog.showAndWait().ifPresent(this::addImportedWallet);
+    }
+
     private boolean attemptImportWallet(File file, SecureString password) {
         List<WalletImport> walletImporters = List.of(new ColdcardSinglesig(), new ColdcardMultisig(),
                 new Bip129(),

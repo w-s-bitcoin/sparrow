@@ -15,6 +15,9 @@ import java.util.List;
 
 public class KeystoreExportDialog extends Dialog<Keystore> {
     public KeystoreExportDialog(Keystore keystore) {
+        if(keystore.getSource() == com.sparrowwallet.drongo.wallet.KeystoreSource.SW_PRIVATE_KEY) {
+            throw new IllegalArgumentException("Single private keys cannot be exported as HD multisig signers");
+        }
         EventManager.get().register(this);
         setOnCloseRequest(event -> {
             EventManager.get().unregister(this);

@@ -31,7 +31,7 @@
 
             <Form GridPane.columnIndex="0" GridPane.rowIndex="0">
                 <Fieldset inputGrow="SOMETIMES" text="Settings" styleClass="header">
-                    <Field text="Policy Type:">
+                    <Field fx:id="policyTypeField" text="Policy Type:">
                         <ComboBox fx:id="policyType" prefWidth="180">
                             <items>
                                 <FXCollections fx:factory="observableArrayList">
@@ -42,6 +42,9 @@
                             </items>
                         </ComboBox>
                         <HelpLabel helpText="Single signature wallets use a single keystore (hardware wallet or seed).\nMultisignature wallets require multiple keystores, of which a certain number need to sign.\nSilent Payments wallets also use a single keystore and can receive privately to a reusable address." />
+                    </Field>
+                    <Field fx:id="singleKeyTypeField" text="Wallet type:" visible="false" managed="false">
+                        <Label fx:id="singleKeyType" text="Single private key" />
                     </Field>
                     <Field text="Script Type:">
                         <ComboBox fx:id="scriptType">
@@ -76,7 +79,7 @@
             </Form>
 
             <Form GridPane.columnIndex="0" GridPane.columnSpan="2" GridPane.rowIndex="1">
-                <Fieldset inputGrow="SOMETIMES" text="Script Policy">
+                <Fieldset fx:id="descriptorFieldset" inputGrow="SOMETIMES" text="Script Policy">
                     <Field text="Descriptor:">
                         <VirtualizedScrollPane hbarPolicy="NEVER" vbarPolicy="NEVER">
                             <content>
@@ -102,6 +105,12 @@
                         <Button fx:id="editDescriptor" text="Edit..." onAction="#editDescriptor" />
                         <Button fx:id="showDescriptor" text="Show..." onAction="#showDescriptor" />
                     </Field>
+                </Fieldset>
+                <Fieldset fx:id="singleKeyAddressFieldset" inputGrow="SOMETIMES" text="Reusable address" visible="false" managed="false">
+                    <Field text="Address:">
+                        <CopyableLabel fx:id="singleKeyAddress" styleClass="fixed-width" />
+                    </Field>
+                    <Label text="All receives and transaction change return to this address. Address reuse makes transactions easier to link." wrapText="true" />
                 </Fieldset>
             </Form>
 

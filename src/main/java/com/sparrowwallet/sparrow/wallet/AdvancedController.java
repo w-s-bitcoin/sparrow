@@ -44,6 +44,9 @@ public class AdvancedController implements Initializable {
     @FXML
     private ComboBox<Integer> watchLast;
 
+    @FXML
+    private Field watchLastField;
+
     @Override
     public void initialize(URL location, ResourceBundle resources) {
 
@@ -63,7 +66,13 @@ public class AdvancedController implements Initializable {
         });
 
         gapLimitField.managedProperty().bind(gapLimitField.visibleProperty());
-        gapLimitField.setVisible(wallet.getPolicyType() != PolicyType.SINGLE_SP);
+        gapLimitField.setVisible(wallet.getPolicyType() != PolicyType.SINGLE_SP && !wallet.isSingleKeyWallet());
+        watchLastField.managedProperty().bind(watchLastField.visibleProperty());
+        watchLastField.setVisible(!wallet.isSingleKeyWallet());
+
+        if(wallet.isSingleKeyWallet()) {
+            return;
+        }
 
         gapLimit.setValueFactory(new IntegerSpinner.ValueFactory(Wallet.DEFAULT_LOOKAHEAD, MAX_GAP_LIMIT, wallet.getGapLimit()));
         gapLimit.valueProperty().addListener((observable, oldValue, newValue) -> {
@@ -114,7 +123,9 @@ public class AdvancedController implements Initializable {
     }
 
     public void close() {
-        gapLimit.commitValue();
+        if(gapLimit.getValueFactory() != null) {
+            gapLimit.commitValue();
+        }
     }
 
     private ObservableList<Integer> getWatchListItems(Wallet wallet) {

@@ -37,6 +37,7 @@ import org.controlsfx.control.RangeSlider;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import tornadofx.control.Fieldset;
+import tornadofx.control.Field;
 
 import java.io.IOException;
 import java.net.URL;
@@ -57,6 +58,24 @@ public class SettingsController extends WalletFormController implements Initiali
 
     @FXML
     private ComboBox<PolicyType> policyType;
+
+    @FXML
+    private Field policyTypeField;
+
+    @FXML
+    private Field singleKeyTypeField;
+
+    @FXML
+    private Label singleKeyType;
+
+    @FXML
+    private Fieldset descriptorFieldset;
+
+    @FXML
+    private Fieldset singleKeyAddressFieldset;
+
+    @FXML
+    private CopyableLabel singleKeyAddress;
 
     @FXML
     private DescriptorArea descriptor;
@@ -120,6 +139,12 @@ public class SettingsController extends WalletFormController implements Initiali
     public void initializeView() {
         keystoreTabs = new TabPane();
         keystoreTabsPane.getChildren().add(keystoreTabs);
+
+        policyTypeField.managedProperty().bind(policyTypeField.visibleProperty());
+        singleKeyTypeField.managedProperty().bind(singleKeyTypeField.visibleProperty());
+        descriptorFieldset.managedProperty().bind(descriptorFieldset.visibleProperty());
+        singleKeyAddressFieldset.managedProperty().bind(singleKeyAddressFieldset.visibleProperty());
+        addAccount.managedProperty().bind(addAccount.visibleProperty());
 
         policyType.setButtonCell(new PolicyTypeButtonCell());
         policyType.setCellFactory(_ -> new PolicyTypeListCell());
@@ -305,7 +330,7 @@ public class SettingsController extends WalletFormController implements Initiali
             wallet.setDefaultPolicy(Policy.getPolicy(wallet.getPolicyType(), wallet.getScriptType(), wallet.getKeystores(), 1));
         }
 
-        if(wallet.getPolicyType().equals(PolicyType.SINGLE_HD) || wallet.getPolicyType().equals(PolicyType.SINGLE_SP)) {
+        if(wallet.getPolicyType().equals(PolicyType.SINGLE_HD) || wallet.getPolicyType().equals(PolicyType.SINGLE_SP) || wallet.isSingleKeyWallet()) {
             totalKeystores.setValue(1);
         } else if(wallet.getPolicyType().equals(PolicyType.MULTI_HD)) {
             int maxCosigners = wallet.getScriptType() == null ? PolicyType.MULTI_HD.getDefaultScriptType().getMaxCosigners() : wallet.getScriptType().getMaxCosigners();
@@ -316,11 +341,25 @@ public class SettingsController extends WalletFormController implements Initiali
         }
 
         if(wallet.getPolicyType() != null) {
+            if(wallet.isSingleKeyWallet() && !policyType.getItems().contains(PolicyType.SINGLE_KEY)) {
+                policyType.setItems(FXCollections.observableArrayList(PolicyType.SINGLE_KEY));
+            }
             policyType.getSelectionModel().select(walletForm.getWallet().getPolicyType());
         }
 
         if(wallet.getScriptType() != null) {
             scriptType.getSelectionModel().select(walletForm.getWallet().getScriptType());
+        }
+
+        policyTypeField.setVisible(!wallet.isSingleKeyWallet());
+        singleKeyTypeField.setVisible(wallet.isSingleKeyWallet());
+        descriptorFieldset.setVisible(!wallet.isSingleKeyWallet());
+        singleKeyAddressFieldset.setVisible(wallet.isSingleKeyWallet());
+        addAccount.setVisible(!wallet.isSingleKeyWallet());
+        if(wallet.isSingleKeyWallet()) {
+            singleKeyType.setText(wallet.getKeystores().getFirst().getSingleKey() == null ? "Single public key (watch only)" : "Single private key");
+            singleKeyAddress.setText(wallet.getFreshNode(KeyPurpose.RECEIVE).getAddress().toString());
+            singleKeyAddress.setMaxWidth(Double.MAX_VALUE);
         }
 
         scanDescriptorQR.setVisible(!walletForm.getWallet().isValid());
@@ -409,6 +448,9 @@ public class SettingsController extends WalletFormController implements Initiali
     }
 
     public static RegistryItem getUROutputDescriptor(Wallet wallet) {
+        if(wallet.isSingleKeyWallet()) {
+            return null;
+        }
         List<ScriptExpression> scriptExpressions = getScriptExpressions(wallet.getScriptType());
 
         RegistryItem registryItem = null;
@@ -669,6 +711,9 @@ public class SettingsController extends WalletFormController implements Initiali
     }
 
     public void addAccount(ActionEvent event) {
+        if(walletForm.getWallet().isSingleKeyWallet()) {
+            return;
+        }
         Wallet openWallet = AppServices.get().getOpenWallets().entrySet().stream().filter(entry -> walletForm.getWalletFile().equals(entry.getValue().getWalletFile())).map(Map.Entry::getKey).findFirst().orElseThrow();
         Wallet masterWallet = openWallet.isMasterWallet() ? openWallet : openWallet.getMasterWallet();
 
@@ -845,6 +890,7 @@ public class SettingsController extends WalletFormController implements Initiali
     }
 
     private void setInputFieldsDisabled(boolean disabled) {
+        disabled = disabled || walletForm.getWallet().isSingleKeyWallet();
         policyType.setDisable(disabled);
         scriptType.setDisable(disabled);
         multisigControl.setDisable(disabled);
@@ -868,13 +914,13 @@ public class SettingsController extends WalletFormController implements Initiali
     public void update(SettingsChangedEvent event) {
         Wallet wallet = event.getWallet();
         if(walletForm.getWallet().equals(wallet)) {
-            if(wallet.getPolicyType() == PolicyType.SINGLE_HD || wallet.getPolicyType() == PolicyType.SINGLE_SP) {
+            if(wallet.getPolicyType() == PolicyType.SINGLE_HD || wallet.getPolicyType() == PolicyType.SINGLE_SP || wallet.isSingleKeyWallet()) {
                 wallet.setDefaultPolicy(Policy.getPolicy(wallet.getPolicyType(), wallet.getScriptType(), wallet.getKeystores(), 1));
             } else if(wallet.getPolicyType() == PolicyType.MULTI_HD) {
                 wallet.setDefaultPolicy(Policy.getPolicy(wallet.getPolicyType(), wallet.getScriptType(), wallet.getKeystores(), (int)multisigControl.getLowValue()));
             }
 
-            if(ScriptType.getAddressableScriptTypes(wallet.getPolicyType()).contains(wallet.getScriptType())) {
+            if(!wallet.isSingleKeyWallet() && ScriptType.getAddressableScriptTypes(wallet.getPolicyType()).contains(wallet.getScriptType())) {
                 descriptor.setWallet(wallet);
             }
 
