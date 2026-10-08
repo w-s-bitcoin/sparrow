@@ -128,7 +128,7 @@ compileJava {
 test {
     useJUnitPlatform {
         //Checkpoint verification needs the network and checks compiled in data rather than code, so it is a release checklist step
-        excludeTags 'checkpoint'
+        excludeTags 'checkpoint', 'regtest'
     }
     jvmArgs = ["--enable-native-access=ALL-UNNAMED"]
     systemProperty 'sparrow.home', layout.buildDirectory.dir('test-home').get().asFile.absolutePath
@@ -143,6 +143,23 @@ tasks.register('verifyCheckpoint', Test) {
         includeTags 'checkpoint'
     }
     jvmArgs = ["--enable-native-access=ALL-UNNAMED"]
+    outputs.upToDateWhen { false }
+    testLogging {
+        showStandardStreams = true
+        exceptionFormat = 'full'
+    }
+}
+
+tasks.register('verifySingleKeyRegtest', Test) {
+    description = 'Verifies all single-key wallet types against an explicitly configured local regtest node'
+    group = 'verification'
+    testClassesDirs = sourceSets.test.output.classesDirs
+    classpath = sourceSets.test.runtimeClasspath
+    useJUnitPlatform {
+        includeTags 'regtest'
+    }
+    jvmArgs = ["--enable-native-access=ALL-UNNAMED"]
+    systemProperty 'sparrow.home', layout.buildDirectory.dir('regtest-test-home').get().asFile.absolutePath
     outputs.upToDateWhen { false }
     testLogging {
         showStandardStreams = true
