@@ -31,6 +31,7 @@ import com.sparrowwallet.sparrow.payjoin.Payjoin;
 import com.sparrowwallet.sparrow.wallet.Entry;
 import com.sparrowwallet.sparrow.wallet.HashIndexEntry;
 import com.sparrowwallet.sparrow.wallet.TransactionEntry;
+import com.sparrowwallet.sparrow.wallet.WalletForm;
 import javafx.application.Platform;
 import javafx.collections.FXCollections;
 import javafx.collections.ObservableMap;
@@ -1977,7 +1978,7 @@ public class HeadersController extends TransactionFormController implements Init
                 for(BlockTransactionHashIndex output : walletNode.getTransactionOutputs()) {
                     if(output.getHash().equals(txid) && output.getLabel() == null) { //If we send to ourselves, usually change
                         String label = outputIndexLabels.containsKey((int)output.getIndex()) ? outputIndexLabels.get((int)output.getIndex()) : headersForm.getName();
-                        output.setLabel(label + (walletNode.getKeyPurpose() == KeyPurpose.CHANGE ? (walletNode.getWallet().isBip47() ? " (sent)" : " (change)") : " (received)"));
+                        output.setLabel(label + WalletForm.getOutputLabelSuffix(walletNode, output));
                         changedLabelEntries.add(new HashIndexEntry(event.getWallet(), output, HashIndexEntry.Type.OUTPUT, walletNode.getKeyPurpose()));
                     }
                     if(output.getSpentBy() != null && output.getSpentBy().getHash().equals(txid) && output.getSpentBy().getLabel() == null && headersForm.getName() != null) { //The norm - sending out
