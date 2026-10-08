@@ -50,7 +50,7 @@ public class NodeEntry extends Entry implements Comparable<NodeEntry> {
 
     private static List<Entry> createChildren(Wallet wallet, WalletNode node) {
         return !node.getChildren().isEmpty() ?
-                node.getChildren().stream().filter(childNode -> !Config.get().isHideEmptyUsedAddresses() || childNode.getTransactionOutputs().isEmpty() || !childNode.getUnspentTransactionOutputs().isEmpty()).map(childNode -> new NodeEntry(wallet, childNode)).collect(Collectors.toList()) :
+                node.getChildren().stream().filter(childNode -> wallet.isSingleKeyWallet() || !Config.get().isHideEmptyUsedAddresses() || childNode.getTransactionOutputs().isEmpty() || !childNode.getUnspentTransactionOutputs().isEmpty()).map(childNode -> new NodeEntry(wallet, childNode)).collect(Collectors.toList()) :
                 node.getTransactionOutputs().stream().map(txo -> new HashIndexEntry(wallet, txo, HashIndexEntry.Type.OUTPUT, node.getKeyPurpose())).collect(Collectors.toList());
     }
 

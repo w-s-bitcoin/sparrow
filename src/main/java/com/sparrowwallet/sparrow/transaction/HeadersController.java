@@ -1006,7 +1006,7 @@ public class HeadersController extends TransactionFormController implements Init
     }
 
     private void initializeSignButton(Wallet signingWallet) {
-        Optional<Keystore> softwareKeystore = signingWallet.getKeystores().stream().filter(keystore -> keystore.getSource().equals(KeystoreSource.SW_SEED)).findAny();
+        Optional<Keystore> softwareKeystore = signingWallet.getKeystores().stream().filter(keystore -> keystore.getSource().equals(KeystoreSource.SW_SEED) || keystore.getSource().equals(KeystoreSource.SW_PRIVATE_KEY)).findAny();
         Optional<Keystore> usbKeystore = signingWallet.getKeystores().stream().filter(keystore -> keystore.getSource().equals(KeystoreSource.HW_USB) || keystore.getSource().equals(KeystoreSource.SW_WATCH)).findAny();
         Optional<Keystore> bip47Keystore = signingWallet.getKeystores().stream().filter(keystore -> keystore.getSource().equals(KeystoreSource.SW_PAYMENT_CODE)).findAny();
         Optional<Keystore> cardKeystore = signingWallet.getKeystores().stream().filter(keystore -> keystore.getWalletModel().isCard()).findAny();
@@ -1295,11 +1295,15 @@ public class HeadersController extends TransactionFormController implements Init
         } catch(Exception e) {
             log.warn("Failed to Sign", e);
             AppServices.showErrorDialog("Failed to Sign", e.getMessage());
+        } finally {
+            if(unencryptedWallet.isSingleKeyWallet()) {
+                unencryptedWallet.clearPrivate();
+            }
         }
     }
 
     private void signDeviceKeystores() {
-        if(headersForm.getPsbt().isSigned()) {
+        if(headersForm.getPsbt().isSigned() || headersForm.getSigningWallet().isSingleKeyWallet()) {
             return;
         }
 
@@ -2061,7 +2065,7 @@ public class HeadersController extends TransactionFormController implements Init
     }
 
     private static class WalletSignComparator implements Comparator<Wallet> {
-        private static final List<KeystoreSource> sourceOrder = List.of(KeystoreSource.SW_WATCH, KeystoreSource.HW_AIRGAPPED, KeystoreSource.HW_USB, KeystoreSource.SW_SEED);
+        private static final List<KeystoreSource> sourceOrder = List.of(KeystoreSource.SW_WATCH, KeystoreSource.HW_AIRGAPPED, KeystoreSource.HW_USB, KeystoreSource.SW_SEED, KeystoreSource.SW_PRIVATE_KEY);
 
         @Override
         public int compare(Wallet wallet1, Wallet wallet2) {

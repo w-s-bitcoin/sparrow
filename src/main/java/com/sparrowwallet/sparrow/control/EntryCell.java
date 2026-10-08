@@ -132,7 +132,7 @@ public class EntryCell extends TreeTableCell<Entry, Entry> implements Confirmati
                 setContextMenu(new AddressContextMenu(address, nodeEntry.getOutputDescriptor(), nodeEntry, true, getTreeTableView()));
                 Tooltip tooltip = new Tooltip();
                 tooltip.setShowDelay(Duration.millis(250));
-                tooltip.setText(nodeEntry.getNode().toString());
+                tooltip.setText(nodeEntry.getWallet().isSingleKeyWallet() ? "Reusable wallet address (receive and change)" : nodeEntry.getNode().toString());
                 setTooltip(tooltip);
 
                 HBox actionBox = new HBox();

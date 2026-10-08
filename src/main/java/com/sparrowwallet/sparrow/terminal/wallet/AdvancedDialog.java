@@ -41,7 +41,7 @@ public class AdvancedDialog extends WalletDialog {
         mainPanel.addComponent(birthDate);
 
         //A silent payments wallet derives no addresses to look ahead over, and getGapLimit() returns zero whatever is stored
-        if(wallet.getPolicyType() == PolicyType.SINGLE_SP) {
+        if(wallet.getPolicyType() == PolicyType.SINGLE_SP || wallet.isSingleKeyWallet()) {
             gapLimit = null;
         } else {
             mainPanel.addComponent(new Label("Gap limit"));

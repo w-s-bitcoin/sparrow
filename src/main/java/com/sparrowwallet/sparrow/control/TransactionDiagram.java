@@ -866,7 +866,7 @@ public class TransactionDiagram extends GridPane {
         Label changeLabel = new Label(changeDesc, overGapLimit ? getChangeWarningGlyph() : getChangeGlyph());
         changeLabel.getStyleClass().addAll("output-label", "change-label");
         changeLabel.setSkin(new AddressLabelSkin(changeLabel));
-        Tooltip changeTooltip = new Tooltip("Change of " + getCoinValue(value) + " to " + changeNode + "\n" + changeAddress.toString() + (overGapLimit ? "\nAddress is beyond the gap limit!" : ""));
+        Tooltip changeTooltip = new Tooltip("Change of " + getCoinValue(value) + " to " + (walletTx.getWallet().isSingleKeyWallet() ? "the reusable wallet address" : changeNode) + "\n" + changeAddress.toString() + (overGapLimit ? "\nAddress is beyond the gap limit!" : ""));
         changeTooltip.getStyleClass().add("change-label");
         changeTooltip.setShowDelay(new Duration(TOOLTIP_SHOW_DELAY));
         changeTooltip.setShowDuration(Duration.INDEFINITE);
@@ -874,7 +874,7 @@ public class TransactionDiagram extends GridPane {
         changeLabel.setTooltip(changeTooltip);
         actionBox.getChildren().add(changeLabel);
 
-        if(!isFinal()) {
+        if(!isFinal() && !walletTx.getWallet().isSingleKeyWallet()) {
             Button nextChangeAddressButton = new Button("");
             nextChangeAddressButton.setGraphic(getChangeReplaceGlyph());
             nextChangeAddressButton.setOnAction(event -> {

@@ -52,6 +52,10 @@ public abstract class WalletFormController extends BaseController {
     }
 
     protected String getDerivationPath(WalletNode node) {
+        if(getWalletForm().getWallet().isSingleKeyWallet()) {
+            return "";
+        }
+
         if(isSingleDerivationPath()) {
             KeyDerivation firstDerivation = getWalletForm().getWallet().getKeystores().get(0).getKeyDerivation();
             return firstDerivation.extend(node.getDerivation()).getDerivationPath();

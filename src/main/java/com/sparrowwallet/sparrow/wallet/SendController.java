@@ -152,6 +152,9 @@ public class SendController extends WalletFormController implements Initializabl
     @FXML
     private Button notificationButton;
 
+    @FXML
+    private Label addressReuse;
+
     private StackPane tabHeader;
 
     private final BooleanProperty userFeeSet = new SimpleBooleanProperty(false);
@@ -250,6 +253,8 @@ public class SendController extends WalletFormController implements Initializabl
 
     @Override
     public void initializeView() {
+        addressReuse.setVisible(getWalletForm().getWallet().isSingleKeyWallet());
+        addressReuse.setManaged(addressReuse.isVisible());
         addValidation();
 
         addPaymentTab();
@@ -680,7 +685,7 @@ public class SendController extends WalletFormController implements Initializabl
 
         List<UtxoSelector> selectors = new ArrayList<>();
         OptimizationStrategy optimizationStrategy = (OptimizationStrategy)optimizationToggleGroup.getSelectedToggle().getUserData();
-        if(optimizationStrategy == OptimizationStrategy.PRIVACY
+        if(!wallet.isSingleKeyWallet() && optimizationStrategy == OptimizationStrategy.PRIVACY
                 && payments.size() == 1
                 && (payments.get(0).getAddress().getScriptType() == getWalletForm().getWallet().getNode(KeyPurpose.RECEIVE).getAddress().getScriptType())) {
             selectors.add(new StonewallUtxoSelector(payments.get(0).getAddress().getScriptType(), noInputsFee));
@@ -1040,7 +1045,7 @@ public class SendController extends WalletFormController implements Initializabl
     }
 
     private boolean isFakeMixPossible(List<Payment> payments) {
-        return utxoSelectorProperty.get() == null && payments.size() == 1
+        return !getWalletForm().getWallet().isSingleKeyWallet() && utxoSelectorProperty.get() == null && payments.size() == 1
                 && (payments.get(0).getAddress().getScriptType() == getWalletForm().getWallet().getNode(KeyPurpose.RECEIVE).getAddress().getScriptType())
                 && getPayjoinURI(payments) == null;
     }

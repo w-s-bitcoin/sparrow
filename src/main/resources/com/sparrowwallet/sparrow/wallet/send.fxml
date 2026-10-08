@@ -31,6 +31,9 @@
 <BorderPane stylesheets="@send.css, @wallet.css, @../script.css, @../general.css" styleClass="wallet-pane" xmlns="http://javafx.com/javafx/10.0.2-internal" xmlns:fx="http://javafx.com/fxml/1" fx:controller="com.sparrowwallet.sparrow.wallet.SendController">
     <center>
         <VBox>
+            <Label fx:id="addressReuse" text="Single private key: change returns to this wallet's reusable address. Address reuse links your transactions." wrapText="true">
+                <padding><Insets left="25" right="25" top="10" bottom="5" /></padding>
+            </Label>
             <GridPane styleClass="send-form" hgap="10.0" vgap="10.0">
                 <padding>
                     <Insets left="25.0" right="25.0" top="25.0" />

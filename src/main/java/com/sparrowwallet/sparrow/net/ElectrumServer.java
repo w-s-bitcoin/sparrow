@@ -703,6 +703,10 @@ public class ElectrumServer {
     }
 
     public void getHistory(Wallet wallet, KeyPurpose keyPurpose, Map<WalletNode, Set<BlockTransactionHash>> nodeTransactionMap) throws ServerException {
+        if(wallet.isSingleKeyWallet() && keyPurpose != KeyPurpose.RECEIVE) {
+            return;
+        }
+
         WalletNode purposeNode = wallet.getNode(keyPurpose);
         //Subscribe to all existing address WalletNodes and add them to nodeTransactionMap as keys to empty sets if they have history that needs to be fetched
         subscribeWalletNodes(wallet, getAddressNodes(wallet, purposeNode), nodeTransactionMap, 0);
@@ -720,6 +724,10 @@ public class ElectrumServer {
     }
 
     private void getHistoryToGapLimit(Wallet wallet, Map<WalletNode, Set<BlockTransactionHash>> nodeTransactionMap, WalletNode purposeNode) throws ServerException {
+        if(wallet.isSingleKeyWallet()) {
+            return;
+        }
+
         //Because node children are added sequentially in WalletNode.fillToIndex, we can simply look at the number of children to determine the highest filled index
         int historySize = purposeNode.getChildren().size();
         //The gap limit size takes the highest used index in the retrieved history and adds the gap limit (plus one to be comparable to the number of children since index is zero based)

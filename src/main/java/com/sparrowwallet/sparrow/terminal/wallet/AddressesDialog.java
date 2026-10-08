@@ -47,8 +47,10 @@ public class AddressesDialog extends WalletDialog {
 
         Panel mainPanel = new Panel();
         mainPanel.setLayoutManager(new LinearLayout(Direction.VERTICAL).setSpacing(1));
-        mainPanel.addComponent(receiveTable.withBorder(new EmptyBorder("Receive")));
-        mainPanel.addComponent(changeTable.withBorder(new EmptyBorder("Change")));
+        mainPanel.addComponent(receiveTable.withBorder(new EmptyBorder(walletForm.getWallet().isSingleKeyWallet() ? "Receive and Change" : "Receive")));
+        if(!walletForm.getWallet().isSingleKeyWallet()) {
+            mainPanel.addComponent(changeTable.withBorder(new EmptyBorder("Change")));
+        }
         mainPanel.addComponent(buttonPanel);
 
         setComponent(mainPanel);
@@ -68,7 +70,7 @@ public class AddressesDialog extends WalletDialog {
         });
 
         Integer highestUsedReceiveIndex = getWalletForm().getNodeEntry(keyPurpose).getNode().getHighestUsedIndex();
-        if(highestUsedReceiveIndex != null) {
+        if(highestUsedReceiveIndex != null && !getWalletForm().getWallet().isSingleKeyWallet()) {
             table.setSelectedRow(highestUsedReceiveIndex + 1);
         }
     }

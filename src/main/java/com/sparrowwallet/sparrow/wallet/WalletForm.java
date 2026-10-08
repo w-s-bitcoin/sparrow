@@ -462,6 +462,10 @@ public class WalletForm {
     }
 
     public NodeEntry getFreshNodeEntry(KeyPurpose keyPurpose, NodeEntry currentEntry) {
+        if(getWallet().isSingleKeyWallet()) {
+            return getUnusedNodeEntry(KeyPurpose.RECEIVE, null);
+        }
+
         NodeEntry freshEntry = getUnusedNodeEntry(keyPurpose, currentEntry);
         //A label marks an address already given out to a payer, even though nothing has been received to it yet
         while(freshEntry.getLabel() != null && !freshEntry.getLabel().isEmpty()) {
@@ -488,6 +492,10 @@ public class WalletForm {
     }
 
     public void ensureSufficientGapLimit(NodeEntry nodeEntry) {
+        if(wallet.isSingleKeyWallet()) {
+            return;
+        }
+
         WalletNode node = nodeEntry.getNode();
         Integer highestIndex = wallet.getNode(node.getKeyPurpose()).getHighestUsedIndex();
         int highestUsedIndex = highestIndex == null ? -1 : highestIndex;
@@ -679,7 +687,7 @@ public class WalletForm {
                         }
 
                         if((receivedRef.getLabel() == null || receivedRef.getLabel().isEmpty()) && wallet.getStandardAccountType() != StandardAccount.WHIRLPOOL_PREMIX) {
-                            receivedRef.setLabel(changedNode.getLabel() + (changedNode.getKeyPurpose() == KeyPurpose.CHANGE ? (changedNode.getWallet().isBip47() ? " (sent)" : " (change)") : " (received)"));
+                            receivedRef.setLabel(changedNode.getLabel() + getOutputLabelSuffix(changedNode, receivedRef));
                             changedLabelEntries.add(new HashIndexEntry(event.getWallet(), receivedRef, HashIndexEntry.Type.OUTPUT, changedNode.getKeyPurpose()));
                         }
                     }
@@ -690,6 +698,18 @@ public class WalletForm {
                 }
             }
         }
+    }
+
+    static String getOutputLabelSuffix(WalletNode node, BlockTransactionHashIndex output) {
+        if(node.getWallet().isSingleKeyWallet()) {
+            //The same address receives both external payments and change/self transfers. A
+            //known wallet input distinguishes returned funds without inventing a change branch.
+            boolean returned = node.getTransactionOutputs().stream().anyMatch(previous -> previous.isSpent()
+                    && previous.getSpentBy().getHash().equals(output.getHash()));
+            return returned ? " (returned)" : " (received)";
+        }
+
+        return node.getKeyPurpose() == KeyPurpose.CHANGE ? (node.getWallet().isBip47() ? " (sent)" : " (change)") : " (received)";
     }
 
     @Subscribe
@@ -706,14 +726,14 @@ public class WalletForm {
                                     if(receivedRef.getHash().equals(transactionEntry.getBlockTransaction().getHash())) {
                                         String prevRefLabel = "";
                                         if((receivedRef.getLabel() == null || receivedRef.getLabel().isEmpty()
-                                                || receivedRef.getLabel().endsWith(" (sent)") || receivedRef.getLabel().endsWith(" (change)") || receivedRef.getLabel().endsWith(" (received)"))
+                                                || receivedRef.getLabel().endsWith(" (sent)") || receivedRef.getLabel().endsWith(" (change)") || receivedRef.getLabel().endsWith(" (returned)") || receivedRef.getLabel().endsWith(" (received)"))
                                                 && wallet.getStandardAccountType() != StandardAccount.WHIRLPOOL_PREMIX) {
                                             prevRefLabel = receivedRef.getLabel() == null ? "" : receivedRef.getLabel();
-                                            receivedRef.setLabel(entry.getLabel() + (keyPurpose == KeyPurpose.CHANGE ? (event.getWallet().isBip47() ? " (sent)" : " (change)") : " (received)"));
+                                            receivedRef.setLabel(entry.getLabel() + getOutputLabelSuffix(childNode, receivedRef));
                                             labelChangedEntries.put(new HashIndexEntry(event.getWallet(), receivedRef, HashIndexEntry.Type.OUTPUT, keyPurpose), entry);
                                         }
                                         if(childNode.getLabel() == null || childNode.getLabel().isEmpty()
-                                                || prevRefLabel.equals(childNode.getLabel() + " (sent)") || prevRefLabel.equals(childNode.getLabel() + " (change)") || prevRefLabel.equals(childNode.getLabel() + " (received)")) {
+                                                || prevRefLabel.equals(childNode.getLabel() + " (sent)") || prevRefLabel.equals(childNode.getLabel() + " (change)") || prevRefLabel.equals(childNode.getLabel() + " (returned)") || prevRefLabel.equals(childNode.getLabel() + " (received)")) {
                                             childNode.setLabel(entry.getLabel());
                                             labelChangedEntries.put(new NodeEntry(event.getWallet(), childNode), entry);
                                         }

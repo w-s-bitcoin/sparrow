@@ -249,6 +249,11 @@ public class BitcoindClient {
         Map<String, ScanDate> outputDescriptors = new LinkedHashMap<>();
         for(Wallet wallet : validWallets) {
             String receiveOutputDescriptor = OutputDescriptor.getOutputDescriptor(wallet, KeyPurpose.RECEIVE).toString(false, false);
+            if(wallet.isSingleKeyWallet()) {
+                // A fixed public-key descriptor is not ranged and has no separate change branch.
+                addOutputDescriptor(outputDescriptors, receiveOutputDescriptor, wallet, null, wallet.getBirthDate());
+                continue;
+            }
             addOutputDescriptor(outputDescriptors, receiveOutputDescriptor, wallet, KeyPurpose.RECEIVE, wallet.getBirthDate());
             String changeOutputDescriptor = OutputDescriptor.getOutputDescriptor(wallet, KeyPurpose.CHANGE).toString(false, false);
             addOutputDescriptor(outputDescriptors, changeOutputDescriptor, wallet, KeyPurpose.CHANGE, wallet.getBirthDate());

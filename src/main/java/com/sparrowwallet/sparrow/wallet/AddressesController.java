@@ -14,6 +14,9 @@ import javafx.event.ActionEvent;
 import javafx.fxml.FXML;
 import javafx.fxml.Initializable;
 import javafx.scene.control.Button;
+import javafx.scene.control.Label;
+import javafx.scene.layout.BorderPane;
+import javafx.scene.layout.GridPane;
 import javafx.stage.FileChooser;
 import javafx.stage.Stage;
 import org.slf4j.Logger;
@@ -38,6 +41,15 @@ public class AddressesController extends WalletFormController implements Initial
     private AddressTreeTable changeTable;
 
     @FXML
+    private GridPane addressesPane;
+
+    @FXML
+    private BorderPane changePane;
+
+    @FXML
+    private Label receiveTitle;
+
+    @FXML
     private Button showPayNymAddresses;
 
     @Override
@@ -48,7 +60,16 @@ public class AddressesController extends WalletFormController implements Initial
     @Override
     public void initializeView() {
         receiveTable.initialize(getWalletForm().getNodeEntry(KeyPurpose.RECEIVE));
-        changeTable.initialize(getWalletForm().getNodeEntry(KeyPurpose.CHANGE));
+        boolean singleKey = getWalletForm().getWallet().isSingleKeyWallet();
+        if(singleKey) {
+            receiveTitle.setText("Reusable Address (Receive and Change)");
+            changePane.setVisible(false);
+            changePane.setManaged(false);
+            addressesPane.getRowConstraints().get(0).setPercentHeight(100);
+            addressesPane.getRowConstraints().get(1).setPercentHeight(0);
+        } else {
+            changeTable.initialize(getWalletForm().getNodeEntry(KeyPurpose.CHANGE));
+        }
 
         showPayNymAddresses.managedProperty().bind(showPayNymAddresses.visibleProperty());
         showPayNymAddresses.setVisible(getWalletForm().getWallet().getChildWallets().stream().anyMatch(Wallet::isBip47));
@@ -58,7 +79,9 @@ public class AddressesController extends WalletFormController implements Initial
     public void walletNodesChanged(WalletNodesChangedEvent event) {
         if(event.getWallet().equals(walletForm.getWallet())) {
             receiveTable.updateAll(getWalletForm().getNodeEntry(KeyPurpose.RECEIVE));
-            changeTable.updateAll(getWalletForm().getNodeEntry(KeyPurpose.CHANGE));
+            if(!getWalletForm().getWallet().isSingleKeyWallet()) {
+                changeTable.updateAll(getWalletForm().getNodeEntry(KeyPurpose.CHANGE));
+            }
         }
     }
 
@@ -71,7 +94,7 @@ public class AddressesController extends WalletFormController implements Initial
             }
 
             List<WalletNode> changeNodes = event.getChangeNodes();
-            if(!changeNodes.isEmpty()) {
+            if(!getWalletForm().getWallet().isSingleKeyWallet() && !changeNodes.isEmpty()) {
                 changeTable.updateHistory(changeNodes);
             }
         }
@@ -82,7 +105,9 @@ public class AddressesController extends WalletFormController implements Initial
         if(event.getWallet().equals(walletForm.getWallet())) {
             for(Entry entry : event.getEntries()) {
                 receiveTable.updateLabel(entry);
-                changeTable.updateLabel(entry);
+                if(!getWalletForm().getWallet().isSingleKeyWallet()) {
+                    changeTable.updateLabel(entry);
+                }
             }
         }
     }
@@ -105,14 +130,16 @@ public class AddressesController extends WalletFormController implements Initial
     public void walletAddressesStatusChanged(WalletAddressesStatusEvent event) {
         if(event.getWallet().equals(walletForm.getWallet())) {
             receiveTable.updateAll(getWalletForm().getNodeEntry(KeyPurpose.RECEIVE));
-            changeTable.updateAll(getWalletForm().getNodeEntry(KeyPurpose.CHANGE));
+            if(!getWalletForm().getWallet().isSingleKeyWallet()) {
+                changeTable.updateAll(getWalletForm().getNodeEntry(KeyPurpose.CHANGE));
+            }
         }
     }
 
     @Subscribe
     public void selectEntry(SelectEntryEvent event) {
         if(event.getWallet().equals(getWalletForm().getWallet()) && event.getEntry().getWalletFunction() == Function.ADDRESSES) {
-            List<AddressTreeTable> addressTreeTables = List.of(receiveTable, changeTable);
+            List<AddressTreeTable> addressTreeTables = getWalletForm().getWallet().isSingleKeyWallet() ? List.of(receiveTable) : List.of(receiveTable, changeTable);
             for(AddressTreeTable addressTreeTable : addressTreeTables) {
                 selectEntry(addressTreeTable, addressTreeTable.getRoot(), event.getEntry());
             }
@@ -155,18 +182,24 @@ public class AddressesController extends WalletFormController implements Initial
 
         Wallet copy = getWalletForm().getWallet().copy();
         WalletNode purposeNode = copy.getNode(keyPurpose);
-        purposeNode.fillToIndex(Math.max(purposeNode.getChildren().size(), DEFAULT_EXPORT_ADDRESSES_LENGTH));
+        if(!copy.isSingleKeyWallet()) {
+            purposeNode.fillToIndex(Math.max(purposeNode.getChildren().size(), DEFAULT_EXPORT_ADDRESSES_LENGTH));
+        }
 
         AppServices.moveToActiveWindowScreen(window, 800, 450);
         File file = fileChooser.showSaveDialog(window);
         if(file != null) {
             try(FileOutputStream outputStream = new FileOutputStream(file)) {
                 CsvWriter writer = new CsvWriter(outputStream, ',', StandardCharsets.UTF_8);
-                writer.writeRecord(new String[] {"Index", "Payment Address", "Derivation", "Label"});
+                writer.writeRecord(copy.isSingleKeyWallet() ? new String[] {"Payment Address", "Label"} : new String[] {"Index", "Payment Address", "Derivation", "Label"});
                 for(WalletNode indexNode : purposeNode.getChildren()) {
-                    writer.write(Integer.toString(indexNode.getIndex()));
+                    if(!copy.isSingleKeyWallet()) {
+                        writer.write(Integer.toString(indexNode.getIndex()));
+                    }
                     writer.write(indexNode.getAddress().toString());
-                    writer.write(getDerivationPath(indexNode));
+                    if(!copy.isSingleKeyWallet()) {
+                        writer.write(getDerivationPath(indexNode));
+                    }
                     Optional<Entry> optLabelEntry = getWalletForm().getNodeEntry(keyPurpose).getChildren().stream()
                             .filter(entry -> ((NodeEntry)entry).getNode().getIndex() == indexNode.getIndex()).findFirst();
                     writer.write(optLabelEntry.isPresent() ? optLabelEntry.get().getLabel() : indexNode.getLabel());

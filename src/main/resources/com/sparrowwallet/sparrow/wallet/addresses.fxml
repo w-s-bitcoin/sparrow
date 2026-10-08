@@ -10,7 +10,7 @@
 <?import com.sparrowwallet.sparrow.control.AddressTreeTable?>
 <?import org.controlsfx.glyphfont.Glyph?>
 
-<GridPane hgap="10.0" vgap="10.0" stylesheets="@addresses.css, @wallet.css, @../general.css" styleClass="wallet-pane" xmlns="http://javafx.com/javafx/10.0.2-internal" xmlns:fx="http://javafx.com/fxml/1" fx:controller="com.sparrowwallet.sparrow.wallet.AddressesController">
+<GridPane fx:id="addressesPane" hgap="10.0" vgap="10.0" stylesheets="@addresses.css, @wallet.css, @../general.css" styleClass="wallet-pane" xmlns="http://javafx.com/javafx/10.0.2-internal" xmlns:fx="http://javafx.com/fxml/1" fx:controller="com.sparrowwallet.sparrow.wallet.AddressesController">
     <padding>
         <Insets left="25.0" right="25.0" top="15.0" bottom="25.0" />
     </padding>
@@ -24,7 +24,7 @@
     <BorderPane GridPane.columnIndex="0" GridPane.rowIndex="0">
         <top>
             <HBox alignment="CENTER_LEFT">
-                <Label styleClass="addresses-treetable-label" text="Receive Addresses"/>
+                <Label fx:id="receiveTitle" styleClass="addresses-treetable-label" text="Receive Addresses"/>
                 <Button onAction="#exportReceiveAddresses" styleClass="icon-button">
                     <graphic>
                         <Glyph fontFamily="Font Awesome 5 Free Solid" icon="ARROW_CIRCLE_DOWN" fontSize="12" />
@@ -48,7 +48,7 @@
             <AddressTreeTable fx:id="receiveTable" tableType="RECEIVE_ADDRESSES" />
         </center>
     </BorderPane>
-    <BorderPane GridPane.columnIndex="0" GridPane.rowIndex="1">
+    <BorderPane fx:id="changePane" GridPane.columnIndex="0" GridPane.rowIndex="1">
         <top>
             <HBox alignment="CENTER_LEFT">
                 <Label styleClass="addresses-treetable-label" text="Change Addresses"/>
