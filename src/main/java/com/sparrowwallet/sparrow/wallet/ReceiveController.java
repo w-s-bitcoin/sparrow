@@ -38,6 +38,7 @@ import org.controlsfx.glyphfont.Glyph;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import tornadofx.control.Form;
+import tornadofx.control.Field;
 
 import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
@@ -63,6 +64,12 @@ public class ReceiveController extends WalletFormController implements Initializ
 
     @FXML
     private CopyableLabel derivationPath;
+
+    @FXML
+    private Field derivationField;
+
+    @FXML
+    private Label addressReuse;
 
     @FXML
     private Label lastUsed;
@@ -166,7 +173,12 @@ public class ReceiveController extends WalletFormController implements Initializ
 
     public void updateFromWalletPolicy() {
         receiveForm.setVisible(walletForm.getWallet().getPolicyType() != PolicyType.SINGLE_SP);
-        nextAddress.setVisible(walletForm.getWallet().getPolicyType() != PolicyType.SINGLE_SP);
+        boolean singleKey = walletForm.getWallet().isSingleKeyWallet();
+        nextAddress.setVisible(walletForm.getWallet().getPolicyType() != PolicyType.SINGLE_SP && !singleKey);
+        derivationField.setVisible(!singleKey);
+        derivationField.setManaged(!singleKey);
+        addressReuse.setVisible(singleKey);
+        addressReuse.setManaged(singleKey);
     }
 
     public void setNodeEntry(NodeEntry nodeEntry) {
@@ -213,8 +225,11 @@ public class ReceiveController extends WalletFormController implements Initializ
             long count = currentOutputs.size();
             BlockTransactionHashIndex lastUsedReference = currentOutputs.stream().skip(count - 1).findFirst().get();
             lastUsed.setText(lastUsedReference.getHeight() <= 0 ? "Unconfirmed Transaction" : (lastUsedReference.getDate() == null ? "Unknown" : DATE_FORMAT.format(lastUsedReference.getDate())));
-            lastUsed.setGraphic(getWarningGlyph());
-            if(!address.getStyleClass().contains("error")) {
+            boolean singleKey = getWalletForm().getWallet().isSingleKeyWallet();
+            lastUsed.setGraphic(singleKey ? null : getWarningGlyph());
+            if(singleKey) {
+                address.getStyleClass().remove("error");
+            } else if(!address.getStyleClass().contains("error")) {
                 address.getStyleClass().add("error");
             }
         } else {
@@ -226,6 +241,12 @@ public class ReceiveController extends WalletFormController implements Initializ
 
     private void updateDisplayAddress(List<Device> devices) {
         Wallet wallet = getWalletForm().getWallet();
+        if(wallet.isSingleKeyWallet()) {
+            displayAddress.setVisible(false);
+            displayAddress.setUserData(null);
+            return;
+        }
+
         OutputDescriptor walletDescriptor = OutputDescriptor.getOutputDescriptor(walletForm.getWallet());
         List<String> walletFingerprints = walletDescriptor.getExtendedPublicKeys().stream().map(extKey -> walletDescriptor.getKeyDerivation(extKey).getMasterFingerprint()).collect(Collectors.toList());
 

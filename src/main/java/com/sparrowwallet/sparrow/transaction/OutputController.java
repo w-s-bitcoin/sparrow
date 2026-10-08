@@ -135,7 +135,8 @@ public class OutputController extends TransactionFormController implements Initi
                     Wallet toWallet = walletTx.getToWallet(AppServices.get().getOpenWallets().keySet(), payment);
                     outputFieldset.setText(baseText + (toWallet == null ? " - Payment" : " - Received to " + toWallet.getFullDisplayName()));
                 } else if(output instanceof WalletTransaction.ChangeOutput changeOutput) {
-                    outputFieldset.setText(baseText + " - Change to " + changeOutput.getWalletNode().toString());
+                    outputFieldset.setText(baseText + " - Change to " + (changeOutput.getWalletNode().getWallet().isSingleKeyWallet()
+                            ? "reusable wallet address" : changeOutput.getWalletNode().toString()));
                 } else {
                     outputFieldset.setText(baseText);
                 }

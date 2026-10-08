@@ -10,16 +10,24 @@ import org.jdbi.v3.sqlobject.statement.SqlUpdate;
 import java.util.List;
 
 public interface KeystoreDao {
-    @SqlQuery("select keystore.id, keystore.label, keystore.source, keystore.walletModel, keystore.masterFingerprint, keystore.derivationPath, keystore.extendedPublicKey, keystore.externalPaymentCode, keystore.silentPaymentScanAddress, keystore.deviceRegistration, " +
+    @SqlQuery("select keystore.id, keystore.label, keystore.source, keystore.walletModel, keystore.masterFingerprint, keystore.derivationPath, keystore.extendedPublicKey, keystore.externalPaymentCode, keystore.silentPaymentScanAddress, keystore.deviceRegistration, keystore.singlePublicKey, " +
               "masterPrivateExtendedKey.id, masterPrivateExtendedKey.privateKey, masterPrivateExtendedKey.chainCode, masterPrivateExtendedKey.initialisationVector, masterPrivateExtendedKey.encryptedBytes, masterPrivateExtendedKey.keySalt, masterPrivateExtendedKey.deriver, masterPrivateExtendedKey.crypter, " +
-              "seed.id, seed.type, seed.mnemonicString, seed.initialisationVector, seed.encryptedBytes, seed.keySalt, seed.deriver, seed.crypter, seed.needsPassphrase, seed.creationTimeSeconds " +
-              "from keystore left join masterPrivateExtendedKey on keystore.masterPrivateExtendedKey = masterPrivateExtendedKey.id left join seed on keystore.seed = seed.id where keystore.wallet = ? order by keystore.index asc")
+              "seed.id, seed.type, seed.mnemonicString, seed.initialisationVector, seed.encryptedBytes, seed.keySalt, seed.deriver, seed.crypter, seed.needsPassphrase, seed.creationTimeSeconds, " +
+              "singleKey.id, singleKey.privateKey, singleKey.compressed, singleKey.initialisationVector, singleKey.encryptedBytes, singleKey.keySalt, singleKey.deriver, singleKey.crypter " +
+              "from keystore left join masterPrivateExtendedKey on keystore.masterPrivateExtendedKey = masterPrivateExtendedKey.id left join seed on keystore.seed = seed.id left join singleKey on keystore.singleKey = singleKey.id where keystore.wallet = ? order by keystore.index asc")
     @RegisterRowMapper(KeystoreMapper.class)
     List<Keystore> getForWalletId(Long id);
 
-    @SqlUpdate("insert into keystore (label, source, walletModel, masterFingerprint, derivationPath, extendedPublicKey, externalPaymentCode, silentPaymentScanAddress, deviceRegistration, masterPrivateExtendedKey, seed, wallet, index) values (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)")
+    @SqlUpdate("insert into keystore (label, source, walletModel, masterFingerprint, derivationPath, extendedPublicKey, externalPaymentCode, silentPaymentScanAddress, deviceRegistration, masterPrivateExtendedKey, seed, singlePublicKey, singleKey, wallet, index) values (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)")
     @GetGeneratedKeys("id")
-    long insert(String label, int source, int walletModel, String masterFingerprint, String derivationPath, String extendedPublicKey, String externalPaymentCode, byte[] silentPaymentScanAddress, byte[] deviceRegistration, Long masterPrivateExtendedKey, Long seed, long wallet, int index);
+    long insert(String label, int source, int walletModel, String masterFingerprint, String derivationPath, String extendedPublicKey, String externalPaymentCode, byte[] silentPaymentScanAddress, byte[] deviceRegistration, Long masterPrivateExtendedKey, Long seed, byte[] singlePublicKey, Long singleKey, long wallet, int index);
+
+    @SqlUpdate("insert into singleKey (privateKey, compressed, initialisationVector, encryptedBytes, keySalt, deriver, crypter) values (?, ?, ?, ?, ?, ?, ?)")
+    @GetGeneratedKeys("id")
+    long insertSingleKey(byte[] privateKey, boolean compressed, byte[] initialisationVector, byte[] encryptedBytes, byte[] keySalt, Integer deriver, Integer crypter);
+
+    @SqlUpdate("update singleKey set privateKey = ?, compressed = ?, initialisationVector = ?, encryptedBytes = ?, keySalt = ?, deriver = ?, crypter = ? where id = ?")
+    void updateSingleKey(byte[] privateKey, boolean compressed, byte[] initialisationVector, byte[] encryptedBytes, byte[] keySalt, Integer deriver, Integer crypter, long id);
 
     @SqlUpdate("insert into masterPrivateExtendedKey (privateKey, chainCode, initialisationVector, encryptedBytes, keySalt, deriver, crypter, creationTimeSeconds) values (?, ?, ?, ?, ?, ?, ?, ?)")
     @GetGeneratedKeys("id")
@@ -44,6 +52,20 @@ public interface KeystoreDao {
     default void addKeystores(Wallet wallet) {
         for(int i = 0; i < wallet.getKeystores().size(); i++) {
             Keystore keystore = wallet.getKeystores().get(i);
+            if(keystore.hasSingleKey()) {
+                SingleKey singleKey = keystore.getSingleKey();
+                if(singleKey.isEncrypted()) {
+                    EncryptedData data = singleKey.getEncryptedData();
+                    singleKey.setId(insertSingleKey(null, singleKey.isCompressed(), data.getInitialisationVector(), data.getEncryptedBytes(), data.getKeySalt(), data.getEncryptionType().getDeriver().ordinal(), data.getEncryptionType().getCrypter().ordinal()));
+                } else {
+                    byte[] secretBytes = singleKey.getSecretBytes();
+                    try {
+                        singleKey.setId(insertSingleKey(secretBytes, singleKey.isCompressed(), null, null, null, null, null));
+                    } finally {
+                        java.util.Arrays.fill(secretBytes, (byte)0);
+                    }
+                }
+            }
             if(keystore.hasMasterPrivateExtendedKey()) {
                 MasterPrivateExtendedKey mpek = keystore.getMasterPrivateExtendedKey();
                 if(mpek.isEncrypted()) {
@@ -69,19 +91,35 @@ public interface KeystoreDao {
             }
 
             long id = insert(truncate(keystore.getLabel()), keystore.getSource().ordinal(), keystore.getWalletModel().ordinal(),
-                    keystore.hasMasterPrivateKey() || wallet.isBip47() ? null : keystore.getKeyDerivation().getMasterFingerprint(),
-                    keystore.getKeyDerivation().getDerivationPath(),
+                    keystore.hasMasterPrivateKey() || wallet.isBip47() || keystore.getKeyDerivation() == null ? null : keystore.getKeyDerivation().getMasterFingerprint(),
+                    keystore.getKeyDerivation() == null ? null : keystore.getKeyDerivation().getDerivationPath(),
                     keystore.hasMasterPrivateKey() || wallet.isBip47() || keystore.getExtendedPublicKey() == null ? null : keystore.getExtendedPublicKey().toString(),
                     keystore.getExternalPaymentCode() == null ? null : keystore.getExternalPaymentCode().toString(),
                     keystore.getSilentPaymentScanAddress() == null ? null : keystore.getSilentPaymentScanAddress().toBytes(),
                     keystore.getDeviceRegistration(),
                     keystore.getMasterPrivateExtendedKey() == null ? null : keystore.getMasterPrivateExtendedKey().getId(),
-                    keystore.getSeed() == null ? null : keystore.getSeed().getId(), wallet.getId(), i);
+                    keystore.getSeed() == null ? null : keystore.getSeed().getId(), keystore.getSinglePublicKey(),
+                    keystore.getSingleKey() == null ? null : keystore.getSingleKey().getId(), wallet.getId(), i);
             keystore.setId(id);
         }
     }
 
     default void updateKeystoreEncryption(Keystore keystore) {
+        if(keystore.hasSingleKey()) {
+            SingleKey singleKey = keystore.getSingleKey();
+            if(singleKey.isEncrypted()) {
+                EncryptedData data = singleKey.getEncryptedData();
+                updateSingleKey(null, singleKey.isCompressed(), data.getInitialisationVector(), data.getEncryptedBytes(), data.getKeySalt(), data.getEncryptionType().getDeriver().ordinal(), data.getEncryptionType().getCrypter().ordinal(), singleKey.getId());
+            } else {
+                byte[] secretBytes = singleKey.getSecretBytes();
+                try {
+                    updateSingleKey(secretBytes, singleKey.isCompressed(), null, null, null, null, null, singleKey.getId());
+                } finally {
+                    java.util.Arrays.fill(secretBytes, (byte)0);
+                }
+            }
+        }
+
         if(keystore.hasMasterPrivateExtendedKey()) {
             MasterPrivateExtendedKey mpek = keystore.getMasterPrivateExtendedKey();
             if(mpek.isEncrypted()) {

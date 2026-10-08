@@ -148,7 +148,7 @@ public class AddressTreeTable extends CoinTreeTable {
             if(existingEntry != null) {
                 existingEntry.refreshChildren();
 
-                if(Config.get().isHideEmptyUsedAddresses() && existingEntry.getValue() == 0L) {
+                if(!rootEntry.getWallet().isSingleKeyWallet() && Config.get().isHideEmptyUsedAddresses() && existingEntry.getValue() == 0L) {
                     rootEntry.getChildren().remove(existingEntry);
                 }
             } else {

@@ -172,6 +172,9 @@ public class FileWalletExportPane extends TitledDescriptionPane {
                     UR ur = UR.fromBytes(outputStream.toByteArray());
                     BBQR bbqr = new BBQR(BBQRType.UNICODE, outputStream.toByteArray());
                     qrDisplayDialog = new QRDisplayDialog(ur, bbqr, false, false, QREncoding.UR);
+                } else if(exporter instanceof Descriptor && exportWallet.isSingleKeyWallet()) {
+                    // Raw public-key descriptors have no HD origin to encode as a CryptoHDKey.
+                    qrDisplayDialog = new QRDisplayDialog(OutputDescriptor.getOutputDescriptor(exportWallet).toString(true));
                 } else if(exporter instanceof Descriptor) {
                     boolean addBbqrOption = exportWallet.getKeystores().stream().anyMatch(keystore -> keystore.getWalletModel().showBbqr());
                     QREncoding encoding = exportWallet.getKeystores().stream().allMatch(keystore -> keystore.getWalletModel().selectBbqr()) ? QREncoding.BBQR : QREncoding.UR;

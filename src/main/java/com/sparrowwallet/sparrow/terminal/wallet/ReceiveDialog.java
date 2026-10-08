@@ -45,8 +45,11 @@ public class ReceiveDialog extends WalletDialog {
         address = new Label("").addTo(mainPanel);
 
         if(!isSilentPayments) {
-            mainPanel.addComponent(new Label("Derivation"));
-            derivation = new Label("").addTo(mainPanel);
+            derivation = new Label("");
+            if(!walletForm.getWallet().isSingleKeyWallet()) {
+                mainPanel.addComponent(new Label("Derivation"));
+                derivation.addTo(mainPanel);
+            }
 
             mainPanel.addComponent(new Label("Last Used"));
             lastUsed = new Label("").addTo(mainPanel);
@@ -58,7 +61,7 @@ public class ReceiveDialog extends WalletDialog {
         Panel buttonPanel = new Panel();
         buttonPanel.setLayoutManager(new GridLayout(2).setHorizontalSpacing(1));
         buttonPanel.addComponent(new Button("Back", () -> onBack(Function.RECEIVE)));
-        if(!isSilentPayments) {
+        if(!isSilentPayments && !walletForm.getWallet().isSingleKeyWallet()) {
             buttonPanel.addComponent(new Button("Get Fresh Address", this::getNewAddress).setLayoutData(GridLayout.createLayoutData(GridLayout.Alignment.CENTER, GridLayout.Alignment.CENTER, true, false)));
         }
 
@@ -119,6 +122,10 @@ public class ReceiveDialog extends WalletDialog {
     }
 
     protected String getDerivationPath(WalletNode node) {
+        if(getWalletForm().getWallet().isSingleKeyWallet()) {
+            return "";
+        }
+
         if(isSingleDerivationPath()) {
             KeyDerivation firstDerivation = getWalletForm().getWallet().getKeystores().get(0).getKeyDerivation();
             return firstDerivation.extend(node.getDerivation()).getDerivationPath();

@@ -60,7 +60,8 @@ public class AddressCell extends TreeTableCell<Entry, UtxoEntry.AddressStatus> {
 
     private String getTooltipText(UtxoEntry utxoEntry, boolean duplicate, boolean dustAttack) {
         return (utxoEntry.getNode().getWallet().isNested() ? utxoEntry.getNode().getWallet().getDisplayName() + " " : "" ) +
-                utxoEntry.getNode().toString() + (duplicate ? " (Duplicate address)" : (dustAttack ? " (Possible dust attack)" : ""));
+                (utxoEntry.getWallet().isSingleKeyWallet() ? "Reusable wallet address (receive and change)" : utxoEntry.getNode().toString()) +
+                (duplicate ? " (Duplicate address)" : (dustAttack ? " (Possible dust attack)" : ""));
     }
 
     public static Glyph getDuplicateGlyph() {

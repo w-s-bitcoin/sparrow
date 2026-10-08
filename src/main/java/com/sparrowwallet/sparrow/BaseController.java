@@ -69,6 +69,10 @@ public abstract class BaseController {
     }
 
     protected String describeKeystore(Keystore keystore) {
+        if(keystore.getSinglePublicKey() != null) {
+            return com.sparrowwallet.drongo.Utils.bytesToHex(keystore.getSinglePublicKey());
+        }
+
         if(keystore.isValid()) {
             StringBuilder builder = new StringBuilder();
             builder.append("[");

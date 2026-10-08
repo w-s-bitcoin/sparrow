@@ -152,6 +152,9 @@ public class SendController extends WalletFormController implements Initializabl
     @FXML
     private Button notificationButton;
 
+    @FXML
+    private Label addressReuse;
+
     private StackPane tabHeader;
 
     private final BooleanProperty userFeeSet = new SimpleBooleanProperty(false);
@@ -250,6 +253,13 @@ public class SendController extends WalletFormController implements Initializabl
 
     @Override
     public void initializeView() {
+        addressReuse.setVisible(getWalletForm().getWallet().isSingleKeyWallet());
+        addressReuse.setManaged(addressReuse.isVisible());
+        if(getWalletForm().getWallet().isSingleKeyWallet()) {
+            String privacyUnavailable = "Privacy optimization requires multiple wallet addresses. This wallet reuses one address for receiving and change.";
+            privacyToggle.setTooltip(new Tooltip(privacyUnavailable));
+            optimizationHelp.setHelpText(privacyUnavailable);
+        }
         addValidation();
 
         addPaymentTab();
@@ -680,7 +690,7 @@ public class SendController extends WalletFormController implements Initializabl
 
         List<UtxoSelector> selectors = new ArrayList<>();
         OptimizationStrategy optimizationStrategy = (OptimizationStrategy)optimizationToggleGroup.getSelectedToggle().getUserData();
-        if(optimizationStrategy == OptimizationStrategy.PRIVACY
+        if(!wallet.isSingleKeyWallet() && optimizationStrategy == OptimizationStrategy.PRIVACY
                 && payments.size() == 1
                 && (payments.get(0).getAddress().getScriptType() == getWalletForm().getWallet().getNode(KeyPurpose.RECEIVE).getAddress().getScriptType())) {
             selectors.add(new StonewallUtxoSelector(payments.get(0).getAddress().getScriptType(), noInputsFee));
@@ -1040,7 +1050,7 @@ public class SendController extends WalletFormController implements Initializabl
     }
 
     private boolean isFakeMixPossible(List<Payment> payments) {
-        return utxoSelectorProperty.get() == null && payments.size() == 1
+        return !getWalletForm().getWallet().isSingleKeyWallet() && utxoSelectorProperty.get() == null && payments.size() == 1
                 && (payments.get(0).getAddress().getScriptType() == getWalletForm().getWallet().getNode(KeyPurpose.RECEIVE).getAddress().getScriptType())
                 && getPayjoinURI(payments) == null;
     }
@@ -1059,6 +1069,10 @@ public class SendController extends WalletFormController implements Initializabl
     }
 
     private OptimizationStrategy getPreferredOptimizationStrategy() {
+        if(getWalletForm().getWallet().isSingleKeyWallet()) {
+            return OptimizationStrategy.EFFICIENCY;
+        }
+
         OptimizationStrategy optimizationStrategy = Config.get().getSendOptimizationStrategy();
         if(StandardAccount.isWhirlpoolMixAccount(getWalletForm().getWallet().getStandardAccountType()) && !overrideOptimizationStrategy) {
             optimizationStrategy = OptimizationStrategy.PRIVACY;
@@ -1070,6 +1084,9 @@ public class SendController extends WalletFormController implements Initializabl
     private void setPreferredOptimizationStrategy() {
         OptimizationStrategy optimizationStrategy = getPreferredOptimizationStrategy();
         optimizationToggleGroup.selectToggle(optimizationStrategy == OptimizationStrategy.PRIVACY ? privacyToggle : efficiencyToggle);
+        if(getWalletForm().getWallet().isSingleKeyWallet()) {
+            privacyToggle.setDisable(true);
+        }
         transactionDiagram.setOptimizationStrategy(optimizationStrategy);
     }
 
@@ -1123,7 +1140,7 @@ public class SendController extends WalletFormController implements Initializabl
         setInputFieldsDisabled(false, false);
 
         efficiencyToggle.setDisable(false);
-        privacyToggle.setDisable(false);
+        privacyToggle.setDisable(getWalletForm().getWallet().isSingleKeyWallet());
 
         notificationButton.setVisible(false);
         createButton.setDefaultButton(true);

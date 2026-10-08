@@ -76,6 +76,7 @@ public class WalletImportDialog extends Dialog<List<Wallet>> {
 
         MnemonicWalletKeystoreImportPane mnemonicImportPane = new MnemonicWalletKeystoreImportPane(new Bip39());
         importAccordion.getPanes().add(0, mnemonicImportPane);
+        importAccordion.getPanes().add(1, new PrivateKeyWalletImportPane());
 
         scrollPane.setContent(importAccordion);
 

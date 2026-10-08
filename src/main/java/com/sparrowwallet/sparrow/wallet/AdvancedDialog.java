@@ -8,6 +8,7 @@ import javafx.scene.control.ButtonBar;
 import javafx.scene.control.ButtonType;
 import javafx.scene.control.Dialog;
 import javafx.scene.control.DialogPane;
+import javafx.scene.layout.Region;
 import org.controlsfx.tools.Borders;
 
 import java.io.IOException;
@@ -33,8 +34,12 @@ public class AdvancedDialog extends Dialog<Boolean> {
             }
 
             dialogPane.setPrefWidth(400);
-            dialogPane.setPrefHeight(300);
-            dialogPane.setMinHeight(dialogPane.getPrefHeight());
+            if(wallet.isSingleKeyWallet()) {
+                dialogPane.setMinHeight(Region.USE_PREF_SIZE);
+            } else {
+                dialogPane.setPrefHeight(300);
+                dialogPane.setMinHeight(dialogPane.getPrefHeight());
+            }
             AppServices.moveToActiveWindowScreen(this);
 
             setOnCloseRequest(event -> {

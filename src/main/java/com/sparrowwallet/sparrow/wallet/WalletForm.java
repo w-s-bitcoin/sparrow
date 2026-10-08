@@ -462,6 +462,10 @@ public class WalletForm {
     }
 
     public NodeEntry getFreshNodeEntry(KeyPurpose keyPurpose, NodeEntry currentEntry) {
+        if(getWallet().isSingleKeyWallet()) {
+            return getUnusedNodeEntry(KeyPurpose.RECEIVE, null);
+        }
+
         NodeEntry freshEntry = getUnusedNodeEntry(keyPurpose, currentEntry);
         //A label marks an address already given out to a payer, even though nothing has been received to it yet
         while(freshEntry.getLabel() != null && !freshEntry.getLabel().isEmpty()) {
@@ -488,6 +492,10 @@ public class WalletForm {
     }
 
     public void ensureSufficientGapLimit(NodeEntry nodeEntry) {
+        if(wallet.isSingleKeyWallet()) {
+            return;
+        }
+
         WalletNode node = nodeEntry.getNode();
         Integer highestIndex = wallet.getNode(node.getKeyPurpose()).getHighestUsedIndex();
         int highestUsedIndex = highestIndex == null ? -1 : highestIndex;
@@ -673,13 +681,13 @@ public class WalletForm {
                     List<Entry> changedLabelEntries = new ArrayList<>();
                     for(BlockTransactionHashIndex receivedRef : changedNode.getTransactionOutputs()) {
                         BlockTransaction blockTransaction = wallet.getTransactions().get(receivedRef.getHash());
-                        if(blockTransaction != null && (blockTransaction.getLabel() == null || blockTransaction.getLabel().isEmpty())) {
+                        if(blockTransaction != null && !isReturnedOutput(changedNode, receivedRef) && (blockTransaction.getLabel() == null || blockTransaction.getLabel().isEmpty())) {
                             blockTransaction.setLabel(changedNode.getLabel());
                             changedLabelEntries.add(new TransactionEntry(event.getWallet(), blockTransaction, Collections.emptyMap(), Collections.emptyMap()));
                         }
 
-                        if((receivedRef.getLabel() == null || receivedRef.getLabel().isEmpty()) && wallet.getStandardAccountType() != StandardAccount.WHIRLPOOL_PREMIX) {
-                            receivedRef.setLabel(changedNode.getLabel() + (changedNode.getKeyPurpose() == KeyPurpose.CHANGE ? (changedNode.getWallet().isBip47() ? " (sent)" : " (change)") : " (received)"));
+                        if(!isReturnedOutput(changedNode, receivedRef) && (receivedRef.getLabel() == null || receivedRef.getLabel().isEmpty()) && wallet.getStandardAccountType() != StandardAccount.WHIRLPOOL_PREMIX) {
+                            receivedRef.setLabel(changedNode.getLabel() + getOutputLabelSuffix(changedNode, receivedRef));
                             changedLabelEntries.add(new HashIndexEntry(event.getWallet(), receivedRef, HashIndexEntry.Type.OUTPUT, changedNode.getKeyPurpose()));
                         }
                     }
@@ -690,6 +698,21 @@ public class WalletForm {
                 }
             }
         }
+    }
+
+    public static String getOutputLabelSuffix(WalletNode node, BlockTransactionHashIndex output) {
+        if(node.getWallet().isSingleKeyWallet()) {
+            return isReturnedOutput(node, output) ? " (returned)" : " (received)";
+        }
+
+        return node.getKeyPurpose() == KeyPurpose.CHANGE ? (node.getWallet().isBip47() ? " (sent)" : " (change)") : " (received)";
+    }
+
+    private static boolean isReturnedOutput(WalletNode node, BlockTransactionHashIndex output) {
+        //A reusable address label identifies the address, not the purpose of a send.
+        //Known wallet inputs distinguish returned funds without inventing a change branch.
+        return node.getWallet().isSingleKeyWallet() && node.getTransactionOutputs().stream().anyMatch(previous -> previous.isSpent()
+                && previous.getSpentBy().getHash().equals(output.getHash()));
     }
 
     @Subscribe
@@ -706,14 +729,14 @@ public class WalletForm {
                                     if(receivedRef.getHash().equals(transactionEntry.getBlockTransaction().getHash())) {
                                         String prevRefLabel = "";
                                         if((receivedRef.getLabel() == null || receivedRef.getLabel().isEmpty()
-                                                || receivedRef.getLabel().endsWith(" (sent)") || receivedRef.getLabel().endsWith(" (change)") || receivedRef.getLabel().endsWith(" (received)"))
+                                                || receivedRef.getLabel().endsWith(" (sent)") || receivedRef.getLabel().endsWith(" (change)") || receivedRef.getLabel().endsWith(" (returned)") || receivedRef.getLabel().endsWith(" (received)"))
                                                 && wallet.getStandardAccountType() != StandardAccount.WHIRLPOOL_PREMIX) {
                                             prevRefLabel = receivedRef.getLabel() == null ? "" : receivedRef.getLabel();
-                                            receivedRef.setLabel(entry.getLabel() + (keyPurpose == KeyPurpose.CHANGE ? (event.getWallet().isBip47() ? " (sent)" : " (change)") : " (received)"));
+                                            receivedRef.setLabel(entry.getLabel() + getOutputLabelSuffix(childNode, receivedRef));
                                             labelChangedEntries.put(new HashIndexEntry(event.getWallet(), receivedRef, HashIndexEntry.Type.OUTPUT, keyPurpose), entry);
                                         }
-                                        if(childNode.getLabel() == null || childNode.getLabel().isEmpty()
-                                                || prevRefLabel.equals(childNode.getLabel() + " (sent)") || prevRefLabel.equals(childNode.getLabel() + " (change)") || prevRefLabel.equals(childNode.getLabel() + " (received)")) {
+                                        if(!wallet.isSingleKeyWallet() && (childNode.getLabel() == null || childNode.getLabel().isEmpty()
+                                                || prevRefLabel.equals(childNode.getLabel() + " (sent)") || prevRefLabel.equals(childNode.getLabel() + " (change)") || prevRefLabel.equals(childNode.getLabel() + " (received)"))) {
                                             childNode.setLabel(entry.getLabel());
                                             labelChangedEntries.put(new NodeEntry(event.getWallet(), childNode), entry);
                                         }
@@ -730,7 +753,7 @@ public class WalletForm {
                     if(entry instanceof NodeEntry nodeEntry) {
                         for(BlockTransactionHashIndex receivedRef : nodeEntry.getNode().getTransactionOutputs()) {
                             BlockTransaction blockTransaction = event.getWallet().getTransactions().get(receivedRef.getHash());
-                            if(blockTransaction.getLabel() == null || blockTransaction.getLabel().isEmpty()) {
+                            if(!isReturnedOutput(nodeEntry.getNode(), receivedRef) && (blockTransaction.getLabel() == null || blockTransaction.getLabel().isEmpty())) {
                                 blockTransaction.setLabel(entry.getLabel());
                                 labelChangedEntries.put(new TransactionEntry(event.getWallet(), blockTransaction, Collections.emptyMap(), Collections.emptyMap()), entry);
                             }

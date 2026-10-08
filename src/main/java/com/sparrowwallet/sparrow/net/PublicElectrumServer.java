@@ -53,7 +53,8 @@ public enum PublicElectrumServer {
     }
 
     public boolean isSupportedPolicyType(PolicyType policyType) {
-        return supportedPolicyTypes.contains(policyType);
+        //Single-key wallets use the same script-hash RPCs as ordinary singlesig wallets.
+        return supportedPolicyTypes.contains(policyType == PolicyType.SINGLE_KEY ? PolicyType.SINGLE_HD : policyType);
     }
 
     public boolean supportsAllPolicyTypes(List<PolicyType> policyTypes) {

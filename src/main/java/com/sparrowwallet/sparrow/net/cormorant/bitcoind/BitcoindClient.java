@@ -233,11 +233,21 @@ public class BitcoindClient {
     }
 
     public void importAddress(Address address, Date since) throws ImportFailedException {
-        Map<String, ScanDate> outputDescriptors = new HashMap<>();
-        String addressOutputDescriptor = OutputDescriptor.toDescriptorString(address);
-        outputDescriptors.put(OutputDescriptor.normalize(addressOutputDescriptor), new ScanDate(since, null, true));
+        importAddresses(Collections.singleton(address), since);
+    }
+
+    public void importAddresses(Collection<Address> addresses, Date since) throws ImportFailedException {
+        Map<String, ScanDate> outputDescriptors = new LinkedHashMap<>();
+        for(Address address : addresses) {
+            String addressOutputDescriptor = OutputDescriptor.toDescriptorString(address);
+            outputDescriptors.put(OutputDescriptor.normalize(addressOutputDescriptor), new ScanDate(since, null, true));
+        }
         try {
             importDescriptors(outputDescriptors);
+            //Wallet imports report partial failures through events. An address preview requires every requested scan to succeed.
+            if(outputDescriptors.keySet().stream().anyMatch(descriptor -> importFailedDescriptors.contains(descriptor) || !importedDescriptors.containsKey(descriptor))) {
+                throw new ImportFailedException("Bitcoin Core could not scan all candidate addresses.");
+            }
         } catch(ScanDateBeforePruneException e) {
             throw new ImportFailedException("Address birth date earlier than prune date.");
         }
@@ -249,6 +259,11 @@ public class BitcoindClient {
         Map<String, ScanDate> outputDescriptors = new LinkedHashMap<>();
         for(Wallet wallet : validWallets) {
             String receiveOutputDescriptor = OutputDescriptor.getOutputDescriptor(wallet, KeyPurpose.RECEIVE).toString(false, false);
+            if(wallet.isSingleKeyWallet()) {
+                // A fixed public-key descriptor is not ranged and has no separate change branch.
+                addOutputDescriptor(outputDescriptors, receiveOutputDescriptor, wallet, null, wallet.getBirthDate());
+                continue;
+            }
             addOutputDescriptor(outputDescriptors, receiveOutputDescriptor, wallet, KeyPurpose.RECEIVE, wallet.getBirthDate());
             String changeOutputDescriptor = OutputDescriptor.getOutputDescriptor(wallet, KeyPurpose.CHANGE).toString(false, false);
             addOutputDescriptor(outputDescriptors, changeOutputDescriptor, wallet, KeyPurpose.CHANGE, wallet.getBirthDate());

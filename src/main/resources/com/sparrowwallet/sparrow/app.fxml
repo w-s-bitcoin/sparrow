@@ -45,6 +45,7 @@
                         <MenuItem fx:id="showPSBT" mnemonicParsing="false" text="Show PSBT as QR..." onAction="#showPSBT"/>
                         <SeparatorMenuItem />
                         <MenuItem mnemonicParsing="false" text="Import Wallet..." onAction="#importWallet"/>
+                        <MenuItem mnemonicParsing="false" text="Import Private Key..." onAction="#importPrivateKey"/>
                         <MenuItem fx:id="exportWallet" mnemonicParsing="false" text="Export Wallet..." onAction="#exportWallet"/>
                         <SeparatorMenuItem styleClass="osxHide" />
                         <MenuItem styleClass="osxHide" mnemonicParsing="false" text="Settings..." accelerator="Shortcut+," onAction="#openSettings"/>

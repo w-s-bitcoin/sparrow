@@ -23,11 +23,31 @@ public class KeystoreMapper implements RowMapper<Keystore> {
         keystore.setId(rs.getLong("keystore.id"));
         keystore.setSource(KeystoreSource.values()[rs.getInt("keystore.source")]);
         keystore.setWalletModel(WalletModel.values()[rs.getInt("keystore.walletModel")]);
-        keystore.setKeyDerivation(new KeyDerivation(rs.getString("keystore.masterFingerprint"), rs.getString("keystore.derivationPath")));
+        keystore.setKeyDerivation(rs.getString("keystore.derivationPath") == null ? null : new KeyDerivation(rs.getString("keystore.masterFingerprint"), rs.getString("keystore.derivationPath")));
         keystore.setExtendedPublicKey(rs.getString("keystore.extendedPublicKey") == null ? null : ExtendedKey.fromDescriptor(rs.getString("keystore.extendedPublicKey")));
         keystore.setExternalPaymentCode(rs.getString("keystore.externalPaymentCode") == null ? null : PaymentCode.fromString(rs.getString("keystore.externalPaymentCode")));
         keystore.setSilentPaymentScanAddress(rs.getBytes("keystore.silentPaymentScanAddress") == null ? null : SilentPaymentScanAddress.fromBytes(rs.getBytes("keystore.silentPaymentScanAddress")));
         keystore.setDeviceRegistration(rs.getBytes("keystore.deviceRegistration"));
+        keystore.setSinglePublicKey(rs.getBytes("keystore.singlePublicKey"));
+
+        if(rs.getBytes("singleKey.privateKey") != null) {
+            byte[] privateKey = rs.getBytes("singleKey.privateKey");
+            try {
+                SingleKey singleKey = new SingleKey(privateKey, rs.getBoolean("singleKey.compressed"));
+                singleKey.setId(rs.getLong("singleKey.id"));
+                keystore.setSingleKey(singleKey);
+            } finally {
+                Arrays.fill(privateKey, (byte)0);
+            }
+        } else if(rs.getBytes("singleKey.encryptedBytes") != null) {
+            EncryptedData encryptedData = new EncryptedData(rs.getBytes("singleKey.initialisationVector"),
+                    rs.getBytes("singleKey.encryptedBytes"), rs.getBytes("singleKey.keySalt"),
+                    EncryptionType.Deriver.values()[rs.getInt("singleKey.deriver")],
+                    EncryptionType.Crypter.values()[rs.getInt("singleKey.crypter")]);
+            SingleKey singleKey = new SingleKey(encryptedData, rs.getBoolean("singleKey.compressed"));
+            singleKey.setId(rs.getLong("singleKey.id"));
+            keystore.setSingleKey(singleKey);
+        }
 
         if(rs.getBytes("masterPrivateExtendedKey.privateKey") != null) {
             MasterPrivateExtendedKey masterPrivateExtendedKey = new MasterPrivateExtendedKey(rs.getBytes("masterPrivateExtendedKey.privateKey"), rs.getBytes("masterPrivateExtendedKey.chainCode"));

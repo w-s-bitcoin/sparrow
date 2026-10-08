@@ -30,7 +30,12 @@ public class Descriptor implements WalletImport, WalletExport {
     public void exportWallet(Wallet wallet, OutputStream outputStream, String password) throws ExportException {
         try {
             BufferedWriter bufferedWriter = new BufferedWriter(new OutputStreamWriter(outputStream));
-            if(wallet.getPolicyType() == PolicyType.SINGLE_SP) {
+            if(wallet.isSingleKeyWallet()) {
+                bufferedWriter.write("# Single reusable receive and change address:");
+                bufferedWriter.newLine();
+                bufferedWriter.write(OutputDescriptor.getOutputDescriptor(wallet).toString(true));
+                bufferedWriter.newLine();
+            } else if(wallet.getPolicyType() == PolicyType.SINGLE_SP) {
                 OutputDescriptor outputDescriptor = OutputDescriptor.getOutputDescriptor(wallet);
 
                 bufferedWriter.write("# Single argument descriptor:");
@@ -144,6 +149,10 @@ public class Descriptor implements WalletImport, WalletExport {
     }
 
     private static Wallet ensureKeyDerivations(Wallet wallet) {
+        if(wallet.isSingleKeyWallet()) {
+            return wallet;
+        }
+
         for(Keystore keystore : wallet.getKeystores()) {
             if(keystore.getKeyDerivation().getMasterFingerprint() == null || keystore.getKeyDerivation().getDerivationPath() == null) {
                 keystore.setKeyDerivation(new KeyDerivation(KeyDerivation.DEFAULT_WATCH_ONLY_FINGERPRINT, wallet.getScriptType().getDefaultDerivationPath()));

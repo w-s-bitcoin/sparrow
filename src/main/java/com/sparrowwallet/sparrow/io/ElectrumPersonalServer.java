@@ -30,6 +30,10 @@ public class ElectrumPersonalServer implements WalletExport {
 
     @Override
     public void exportWallet(Wallet wallet, OutputStream outputStream, String password) throws ExportException {
+        if(wallet.isSingleKeyWallet()) {
+            throw new ExportException(getName() + " export does not support single private key wallets. Use a public output descriptor.");
+        }
+
         if(wallet.getPolicyType() == PolicyType.SINGLE_SP) {
             throw new ExportException(getName() + " does not support silent payments wallets.");
         }

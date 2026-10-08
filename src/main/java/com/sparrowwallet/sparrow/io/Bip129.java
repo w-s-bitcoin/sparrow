@@ -50,6 +50,10 @@ public class Bip129 implements KeystoreFileExport, KeystoreFileImport, WalletExp
 
     @Override
     public void exportKeystore(Keystore keystore, OutputStream outputStream) throws ExportException {
+        if(keystore.getSinglePublicKey() != null) {
+            throw new ExportException("BSMS requires an HD keystore and does not support a single private key.");
+        }
+
         if(!keystore.isValid()) {
             throw new ExportException("Invalid keystore");
         }
@@ -205,6 +209,10 @@ public class Bip129 implements KeystoreFileExport, KeystoreFileImport, WalletExp
 
     @Override
     public void exportWallet(Wallet wallet, OutputStream outputStream, String password) throws ExportException {
+        if(wallet.isSingleKeyWallet()) {
+            throw new ExportException("BSMS does not support single private key wallets. Use a public output descriptor.");
+        }
+
         try {
             String record = "BSMS 1.0\n" +
                     OutputDescriptor.getOutputDescriptor(wallet, KeyPurpose.DEFAULT_PURPOSES, null) +

@@ -31,6 +31,7 @@ import com.sparrowwallet.sparrow.payjoin.Payjoin;
 import com.sparrowwallet.sparrow.wallet.Entry;
 import com.sparrowwallet.sparrow.wallet.HashIndexEntry;
 import com.sparrowwallet.sparrow.wallet.TransactionEntry;
+import com.sparrowwallet.sparrow.wallet.WalletForm;
 import javafx.application.Platform;
 import javafx.collections.FXCollections;
 import javafx.collections.ObservableMap;
@@ -1006,7 +1007,7 @@ public class HeadersController extends TransactionFormController implements Init
     }
 
     private void initializeSignButton(Wallet signingWallet) {
-        Optional<Keystore> softwareKeystore = signingWallet.getKeystores().stream().filter(keystore -> keystore.getSource().equals(KeystoreSource.SW_SEED)).findAny();
+        Optional<Keystore> softwareKeystore = signingWallet.getKeystores().stream().filter(keystore -> keystore.getSource().equals(KeystoreSource.SW_SEED) || keystore.getSource().equals(KeystoreSource.SW_PRIVATE_KEY)).findAny();
         Optional<Keystore> usbKeystore = signingWallet.getKeystores().stream().filter(keystore -> keystore.getSource().equals(KeystoreSource.HW_USB) || keystore.getSource().equals(KeystoreSource.SW_WATCH)).findAny();
         Optional<Keystore> bip47Keystore = signingWallet.getKeystores().stream().filter(keystore -> keystore.getSource().equals(KeystoreSource.SW_PAYMENT_CODE)).findAny();
         Optional<Keystore> cardKeystore = signingWallet.getKeystores().stream().filter(keystore -> keystore.getWalletModel().isCard()).findAny();
@@ -1174,6 +1175,11 @@ public class HeadersController extends TransactionFormController implements Init
 
     private void signFromSeed(DeterministicSeed seed) {
         try {
+            if(headersForm.getSigningWallet().isSingleKeyWallet()) {
+                AppServices.showErrorDialog("Cannot Sign From Seed", "This single-key wallet cannot sign from a seed. Sign with its imported private key or scan a signed PSBT.");
+                return;
+            }
+
             String masterFingerprint = Keystore.fromSeed(seed, PolicyType.SINGLE_HD, ScriptType.P2PKH.getDefaultDerivation()).getKeyDerivation().getMasterFingerprint();
             Wallet walletCopy = headersForm.getSigningWallet().copy();
             OptionalInt optIndex = IntStream.range(0, walletCopy.getKeystores().size())
@@ -1295,11 +1301,15 @@ public class HeadersController extends TransactionFormController implements Init
         } catch(Exception e) {
             log.warn("Failed to Sign", e);
             AppServices.showErrorDialog("Failed to Sign", e.getMessage());
+        } finally {
+            if(unencryptedWallet.isSingleKeyWallet()) {
+                unencryptedWallet.clearPrivate();
+            }
         }
     }
 
     private void signDeviceKeystores() {
-        if(headersForm.getPsbt().isSigned()) {
+        if(headersForm.getPsbt().isSigned() || headersForm.getSigningWallet().isSingleKeyWallet()) {
             return;
         }
 
@@ -1973,7 +1983,7 @@ public class HeadersController extends TransactionFormController implements Init
                 for(BlockTransactionHashIndex output : walletNode.getTransactionOutputs()) {
                     if(output.getHash().equals(txid) && output.getLabel() == null) { //If we send to ourselves, usually change
                         String label = outputIndexLabels.containsKey((int)output.getIndex()) ? outputIndexLabels.get((int)output.getIndex()) : headersForm.getName();
-                        output.setLabel(label + (walletNode.getKeyPurpose() == KeyPurpose.CHANGE ? (walletNode.getWallet().isBip47() ? " (sent)" : " (change)") : " (received)"));
+                        output.setLabel(label + WalletForm.getOutputLabelSuffix(walletNode, output));
                         changedLabelEntries.add(new HashIndexEntry(event.getWallet(), output, HashIndexEntry.Type.OUTPUT, walletNode.getKeyPurpose()));
                     }
                     if(output.getSpentBy() != null && output.getSpentBy().getHash().equals(txid) && output.getSpentBy().getLabel() == null && headersForm.getName() != null) { //The norm - sending out
@@ -2061,7 +2071,7 @@ public class HeadersController extends TransactionFormController implements Init
     }
 
     private static class WalletSignComparator implements Comparator<Wallet> {
-        private static final List<KeystoreSource> sourceOrder = List.of(KeystoreSource.SW_WATCH, KeystoreSource.HW_AIRGAPPED, KeystoreSource.HW_USB, KeystoreSource.SW_SEED);
+        private static final List<KeystoreSource> sourceOrder = List.of(KeystoreSource.SW_WATCH, KeystoreSource.HW_AIRGAPPED, KeystoreSource.HW_USB, KeystoreSource.SW_SEED, KeystoreSource.SW_PRIVATE_KEY);
 
         @Override
         public int compare(Wallet wallet1, Wallet wallet2) {

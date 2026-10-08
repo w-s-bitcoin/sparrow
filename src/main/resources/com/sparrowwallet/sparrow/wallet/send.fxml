@@ -45,9 +45,14 @@
                 </rowConstraints>
                 <BorderPane GridPane.columnIndex="0" GridPane.rowIndex="0" GridPane.columnSpan="3">
                     <top>
-                        <Form styleClass="title-form">
-                            <Fieldset inputGrow="ALWAYS" text="Send"/>
-                        </Form>
+                        <VBox>
+                            <Form styleClass="title-form">
+                                <Fieldset inputGrow="ALWAYS" text="Send"/>
+                            </Form>
+                            <Label fx:id="addressReuse" text="Change returns to this wallet's reusable address. Address reuse makes transactions easier to link." wrapText="true" minHeight="-Infinity">
+                                <VBox.margin><Insets left="5" right="5" bottom="8" /></VBox.margin>
+                            </Label>
+                        </VBox>
                     </top>
                     <center>
                         <TabPane fx:id="paymentTabs" side="RIGHT" styleClass="initial" />
