@@ -50,12 +50,8 @@ public class PrivateKeyImportDialog extends Dialog<Wallet> {
             QRScanDialog dialog = new QRScanDialog();
             dialog.initOwner(pane.getScene().getWindow());
             dialog.showAndWait().ifPresent(result -> {
-                if(result.payload != null) {
-                    privateKey.setText(result.payload.trim());
-                } else {
-                    privateKey.clear();
-                    validationMessage.setText("The QR code must contain a WIF private key.");
-                }
+                PrivateKeyImportScanHandler.handle(result, privateKey::setText, validationMessage::setText);
+                resizeToContent();
             });
         });
         HBox keyInput = new HBox(5, privateKey, scan);
