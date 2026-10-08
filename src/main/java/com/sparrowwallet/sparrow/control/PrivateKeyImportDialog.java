@@ -49,6 +49,7 @@ public class PrivateKeyImportDialog extends Dialog<Wallet> {
     private final Label validationMessage = new Label();
     private final CheckBox confirmAddress = new CheckBox("I confirm that the selected address is the one I want to import.");
     private final Button checkBalances = new Button("Check Balances");
+    private final ProgressIndicator balanceProgress = new ProgressIndicator();
     private final Label balanceStatus = new Label();
     private final Map<Address, CandidateRow> candidateRows = new LinkedHashMap<>();
     private final ChangeListener<Boolean> connectionListener = (observable, oldValue, newValue) -> resetBalanceCheck();
@@ -116,7 +117,10 @@ public class PrivateKeyImportDialog extends Dialog<Wallet> {
         checkBalances.setMinWidth(Region.USE_PREF_SIZE);
         checkBalances.setTooltip(new Tooltip("Checks all displayed addresses with your connected server. The server can link these address queries. Your private key is never sent."));
         checkBalances.setOnAction(event -> checkAddressBalances());
-        HBox balanceControls = new HBox(10, checkBalances, balanceStatus);
+        balanceProgress.managedProperty().bind(balanceProgress.visibleProperty());
+        balanceProgress.maxHeightProperty().bind(checkBalances.heightProperty());
+        balanceProgress.setVisible(false);
+        HBox balanceControls = new HBox(10, checkBalances, balanceProgress, balanceStatus);
         balanceControls.setAlignment(Pos.CENTER_LEFT);
         HBox.setHgrow(balanceStatus, Priority.ALWAYS);
         balanceControls.visibleProperty().bind(javafx.beans.binding.Bindings.isNotEmpty(addressSelection.getToggles()));
@@ -241,7 +245,7 @@ public class PrivateKeyImportDialog extends Dialog<Wallet> {
             balanceService = null;
             previousService.cancel();
         }
-        checkBalances.setGraphic(null);
+        balanceProgress.setVisible(false);
         checkBalances.setText("Check Balances");
         balanceStatus.getStyleClass().remove("failure");
         candidateRows.values().forEach(row -> row.showStatus("Balance not checked"));
@@ -286,14 +290,7 @@ public class PrivateKeyImportDialog extends Dialog<Wallet> {
         AddressActivityService service = new AddressActivityService(candidateRows.keySet(), since);
         balanceService = service;
         Date checkedSince = since;
-        checkBalances.setMaxHeight(checkBalances.getHeight());
-        ProgressIndicator progress = new ProgressIndicator(-1);
-        progress.getStyleClass().add("button-progress");
-        //CSS scaling only changes the drawing, not the size reserved by the button's layout.
-        progress.setMinSize(0, 0);
-        progress.setPrefSize(24, 24);
-        progress.setMaxSize(24, 24);
-        checkBalances.setGraphic(progress);
+        balanceProgress.setVisible(true);
         checkBalances.setDisable(true);
         balanceStatus.getStyleClass().remove("failure");
         balanceStatus.setText(bitcoinCore ? "Scanning addresses with Bitcoin Core..." : "Checking addresses with your connected server...");
@@ -303,7 +300,7 @@ public class PrivateKeyImportDialog extends Dialog<Wallet> {
                 return;
             }
             balanceService = null;
-            checkBalances.setGraphic(null);
+            balanceProgress.setVisible(false);
             checkBalances.setText("Refresh Balances");
             checkBalances.setDisable(!AppServices.isConnected());
             service.getValue().forEach((address, activity) -> candidateRows.get(address).showActivity(activity));
@@ -317,7 +314,7 @@ public class PrivateKeyImportDialog extends Dialog<Wallet> {
                 return;
             }
             balanceService = null;
-            checkBalances.setGraphic(null);
+            balanceProgress.setVisible(false);
             checkBalances.setDisable(!AppServices.isConnected());
             candidateRows.values().forEach(row -> row.showStatus("Balance unavailable"));
             balanceStatus.getStyleClass().add("failure");
