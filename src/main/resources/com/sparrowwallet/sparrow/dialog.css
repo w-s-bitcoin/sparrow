@@ -8,3 +8,6 @@
     -fx-font-size: 24px;
 }
 
+.private-key-addresses, .private-key-addresses > .viewport {
+    -fx-background-color: transparent;
+}

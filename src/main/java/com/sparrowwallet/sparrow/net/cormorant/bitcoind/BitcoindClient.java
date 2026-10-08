@@ -233,11 +233,21 @@ public class BitcoindClient {
     }
 
     public void importAddress(Address address, Date since) throws ImportFailedException {
-        Map<String, ScanDate> outputDescriptors = new HashMap<>();
-        String addressOutputDescriptor = OutputDescriptor.toDescriptorString(address);
-        outputDescriptors.put(OutputDescriptor.normalize(addressOutputDescriptor), new ScanDate(since, null, true));
+        importAddresses(Collections.singleton(address), since);
+    }
+
+    public void importAddresses(Collection<Address> addresses, Date since) throws ImportFailedException {
+        Map<String, ScanDate> outputDescriptors = new LinkedHashMap<>();
+        for(Address address : addresses) {
+            String addressOutputDescriptor = OutputDescriptor.toDescriptorString(address);
+            outputDescriptors.put(OutputDescriptor.normalize(addressOutputDescriptor), new ScanDate(since, null, true));
+        }
         try {
             importDescriptors(outputDescriptors);
+            //Wallet imports report partial failures through events. An address preview requires every requested scan to succeed.
+            if(outputDescriptors.keySet().stream().anyMatch(descriptor -> importFailedDescriptors.contains(descriptor) || !importedDescriptors.containsKey(descriptor))) {
+                throw new ImportFailedException("Bitcoin Core could not scan all candidate addresses.");
+            }
         } catch(ScanDateBeforePruneException e) {
             throw new ImportFailedException("Address birth date earlier than prune date.");
         }
