@@ -7,6 +7,7 @@ import com.sparrowwallet.drongo.OutputDescriptor;
 import com.sparrowwallet.drongo.Utils;
 import com.sparrowwallet.drongo.crypto.Argon2KeyDeriver;
 import com.sparrowwallet.drongo.crypto.ECKey;
+import com.sparrowwallet.drongo.crypto.EncryptedData;
 import com.sparrowwallet.drongo.crypto.EncryptionType;
 import com.sparrowwallet.drongo.crypto.Key;
 import com.sparrowwallet.drongo.protocol.ScriptType;
@@ -246,6 +247,30 @@ class SingleKeyPersistenceTest {
         json.remove("encryptedKey");
         json.addProperty("privateKey", "00".repeat(32));
         assertThrows(JsonParseException.class, () -> JsonPersistence.getGson().fromJson(json, SingleKey.class));
+    }
+
+    @Test
+    void jsonRejectsMalformedEncryptedSingleKeys() {
+        EncryptedData encryptedData = new EncryptedData(new byte[16], new byte[48], new byte[16],
+                EncryptionType.Deriver.ARGON2, EncryptionType.Crypter.AES_CBC_PKCS7);
+        JsonObject valid = JsonPersistence.getGson().toJsonTree(new SingleKey(encryptedData, true)).getAsJsonObject();
+        assertTrue(JsonPersistence.getGson().fromJson(valid, SingleKey.class).isEncrypted());
+
+        for(String field : List.of("initialisationVector", "encryptedBytes", "keySalt", "encryptionType")) {
+            JsonObject missing = valid.deepCopy();
+            missing.getAsJsonObject("encryptedKey").remove(field);
+            assertThrows(JsonParseException.class, () -> JsonPersistence.getGson().fromJson(missing, SingleKey.class), field);
+        }
+        for(String field : List.of("initialisationVector", "encryptedBytes", "keySalt")) {
+            JsonObject wrongLength = valid.deepCopy();
+            wrongLength.getAsJsonObject("encryptedKey").addProperty(field, "00");
+            assertThrows(JsonParseException.class, () -> JsonPersistence.getGson().fromJson(wrongLength, SingleKey.class), field);
+        }
+        for(String field : List.of("deriver", "crypter")) {
+            JsonObject unsupported = valid.deepCopy();
+            unsupported.getAsJsonObject("encryptedKey").getAsJsonObject("encryptionType").addProperty(field, "NONE");
+            assertThrows(JsonParseException.class, () -> JsonPersistence.getGson().fromJson(unsupported, SingleKey.class), field);
+        }
     }
 
     private void configureEncryption(Storage storage, Wallet wallet, boolean encrypted) {

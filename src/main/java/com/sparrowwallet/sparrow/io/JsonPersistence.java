@@ -454,7 +454,11 @@ public class JsonPersistence implements Persistence {
             boolean compressed = jsonObject.get("compressed").getAsBoolean();
             if(jsonObject.has("encryptedKey")) {
                 EncryptedData encryptedData = context.deserialize(jsonObject.get("encryptedKey"), EncryptedData.class);
-                return new SingleKey(encryptedData, compressed);
+                try {
+                    return new SingleKey(encryptedData, compressed);
+                } catch(IllegalArgumentException e) {
+                    throw new JsonParseException("Invalid encrypted single private key", e);
+                }
             }
 
             byte[] secret = context.deserialize(jsonObject.get("privateKey"), byte[].class);
