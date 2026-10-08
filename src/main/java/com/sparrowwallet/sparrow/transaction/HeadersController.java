@@ -1175,6 +1175,11 @@ public class HeadersController extends TransactionFormController implements Init
 
     private void signFromSeed(DeterministicSeed seed) {
         try {
+            if(headersForm.getSigningWallet().isSingleKeyWallet()) {
+                AppServices.showErrorDialog("Cannot Sign From Seed", "This single-key wallet cannot sign from a seed. Sign with its imported private key or scan a signed PSBT.");
+                return;
+            }
+
             String masterFingerprint = Keystore.fromSeed(seed, PolicyType.SINGLE_HD, ScriptType.P2PKH.getDefaultDerivation()).getKeyDerivation().getMasterFingerprint();
             Wallet walletCopy = headersForm.getSigningWallet().copy();
             OptionalInt optIndex = IntStream.range(0, walletCopy.getKeystores().size())
