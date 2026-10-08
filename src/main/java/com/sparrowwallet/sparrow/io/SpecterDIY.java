@@ -67,6 +67,10 @@ public class SpecterDIY implements KeystoreFileImport, WalletExport {
 
     @Override
     public void exportWallet(Wallet wallet, OutputStream outputStream, String password) throws ExportException {
+        if(wallet.isSingleKeyWallet()) {
+            throw new ExportException(getName() + " export does not support single private key wallets. Use a public output descriptor.");
+        }
+
         try {
             BufferedWriter writer = new BufferedWriter(new OutputStreamWriter(outputStream, StandardCharsets.UTF_8));
             writer.append("addwallet ").append(wallet.getFullName()).append("&").append(OutputDescriptor.getOutputDescriptor(wallet).toString().replace('\'', 'h')).append("\n");

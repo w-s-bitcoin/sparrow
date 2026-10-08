@@ -306,6 +306,10 @@ public class Electrum implements KeystoreFileImport, WalletImport, WalletExport 
 
     @Override
     public void exportWallet(Wallet wallet, OutputStream outputStream, String password) throws ExportException {
+        if(wallet.isSingleKeyWallet()) {
+            throw new ExportException(getName() + " export does not support single private key wallets. Use a Sparrow backup or public output descriptor.");
+        }
+
         try {
             ElectrumJsonWallet ew = new ElectrumJsonWallet();
             if(wallet.getPolicyType().equals(PolicyType.SINGLE_HD)) {

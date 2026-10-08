@@ -92,7 +92,7 @@ public class WalletLabels implements WalletImport, WalletExport {
             }
 
             for(WalletNode addressNode : exportWallet.getWalletAddresses().values()) {
-                labels.add(new AddressLabel(addressNode.getAddress().toString(), addressNode.getLabel(), origin, addressNode.getDerivationPath().substring(1),
+                labels.add(new AddressLabel(addressNode.getAddress().toString(), addressNode.getLabel(), origin, exportWallet.isSingleKeyWallet() ? null : addressNode.getDerivationPath().substring(1),
                         addressNode.getTransactionOutputs().stream().flatMap(txo -> txo.isSpent() ? Stream.of(txo, txo.getSpentBy()) : Stream.of(txo))
                                 .filter(ref -> !confirmingTxs.contains(ref.getHash())).map(BlockTransactionHash::getHeight).toList()));
             }
@@ -101,12 +101,12 @@ public class WalletLabels implements WalletImport, WalletExport {
                 BlockTransactionHashIndex txo = txoEntry.getKey();
                 WalletNode addressNode = txoEntry.getValue();
                 Boolean spendable = (txo.isSpent() || txo.getStatus() != Status.FROZEN) ? null : Boolean.FALSE;
-                labels.add(new InputOutputLabel(Type.output, txo.toString(), txo.getLabel(), origin, spendable, addressNode.getDerivationPath().substring(1), txo.getValue(),
+                labels.add(new InputOutputLabel(Type.output, txo.toString(), txo.getLabel(), origin, spendable, exportWallet.isSingleKeyWallet() ? null : addressNode.getDerivationPath().substring(1), txo.getValue(),
                         confirmingTxs.contains(txo.getHash()) ? null : txo.getHeight(), txo.getDate(), getFiatValue(txo, fiatRates)));
 
                 if(txo.isSpent()) {
                     BlockTransactionHashIndex txi = txo.getSpentBy();
-                    labels.add(new InputOutputLabel(Type.input, txi.toString(), txi.getLabel(), origin, null, addressNode.getDerivationPath().substring(1), txi.getValue(),
+                    labels.add(new InputOutputLabel(Type.input, txi.toString(), txi.getLabel(), origin, null, exportWallet.isSingleKeyWallet() ? null : addressNode.getDerivationPath().substring(1), txi.getValue(),
                             confirmingTxs.contains(txi.getHash()) ? null : txi.getHeight(), txi.getDate(), getFiatValue(txi, fiatRates)));
                 }
             }
@@ -215,7 +215,9 @@ public class WalletLabels implements WalletImport, WalletExport {
             List<Entry> transactionEntries = walletForm.getWalletTransactionsEntry().getChildren();
             List<Entry> addressEntries = new ArrayList<>();
             addressEntries.addAll(walletForm.getNodeEntry(KeyPurpose.RECEIVE).getChildren());
-            addressEntries.addAll(walletForm.getNodeEntry(KeyPurpose.CHANGE).getChildren());
+            if(!wallet.isSingleKeyWallet()) {
+                addressEntries.addAll(walletForm.getNodeEntry(KeyPurpose.CHANGE).getChildren());
+            }
             List<Entry> utxoEntries = walletForm.getWalletUtxosEntry().getChildren();
 
             for(Label label : labels) {
@@ -554,6 +556,7 @@ public class WalletLabels implements WalletImport, WalletExport {
 
         private ScriptType scriptType;
         private Set<KeyDerivation> keyDerivations;
+        private String singleKeyDescriptor;
 
         @Override
         public final boolean equals(Object o) {
@@ -564,19 +567,21 @@ public class WalletLabels implements WalletImport, WalletExport {
                 return false;
             }
 
-            return scriptType == origin.scriptType && keyDerivations.equals(origin.keyDerivations);
+            return scriptType == origin.scriptType && keyDerivations.equals(origin.keyDerivations) && Objects.equals(singleKeyDescriptor, origin.singleKeyDescriptor);
         }
 
         @Override
         public int hashCode() {
             int result = Objects.hashCode(scriptType);
             result = 31 * result + keyDerivations.hashCode();
+            result = 31 * result + Objects.hashCode(singleKeyDescriptor);
             return result;
         }
 
         public static Origin fromOutputDescriptor(OutputDescriptor outputDescriptor) {
             Origin origin = new Origin();
             origin.scriptType = outputDescriptor.getScriptType();
+            origin.singleKeyDescriptor = outputDescriptor.isSingleKey() ? outputDescriptor.toString(false) : null;
             origin.keyDerivations = Stream.concat(outputDescriptor.getExtendedPublicKeysMap().values().stream(), outputDescriptor.getSilentPaymentScanAddresses().values().stream())
                     .map(keyDerivation -> new KeyDerivation(keyDerivation.getMasterFingerprint(), KeyDerivation.writePath(keyDerivation.getDerivation())))
                     .collect(Collectors.toCollection(HashSet::new));
@@ -591,6 +596,16 @@ public class WalletLabels implements WalletImport, WalletExport {
             while(keyOriginMatcher.find()) {
                 byte[] masterFingerprintBytes = keyOriginMatcher.group(1) != null ? Utils.hexToBytes(keyOriginMatcher.group(1)) : new byte[4];
                 origin.keyDerivations.add(new KeyDerivation(Utils.bytesToHex(masterFingerprintBytes), KeyDerivation.writePath(KeyDerivation.parsePath(keyOriginMatcher.group(2)))));
+            }
+            if(origin.keyDerivations.isEmpty()) {
+                try {
+                    OutputDescriptor descriptor = OutputDescriptor.getOutputDescriptor(strOrigin);
+                    if(descriptor.isSingleKey()) {
+                        origin.singleKeyDescriptor = descriptor.toString(false);
+                    }
+                } catch(IllegalArgumentException e) {
+                    //Legacy origin strings may omit keys entirely.
+                }
             }
             return origin;
         }

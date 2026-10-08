@@ -31,15 +31,19 @@ public class Sparrow implements WalletImport, WalletExport {
 
     @Override
     public void exportWallet(Wallet wallet, OutputStream outputStream, String password) throws ExportException {
+        Wallet exportedWallet = !wallet.isMasterWallet() ? wallet.getMasterWallet() : wallet;
+        exportWallet(exportedWallet, AppServices.get().getOpenWallets().get(exportedWallet), outputStream);
+    }
+
+    void exportWallet(Wallet exportedWallet, Storage storage, OutputStream outputStream) throws ExportException {
         File tempDir = null;
+        Storage tempStorage = null;
         try {
-            Wallet exportedWallet = !wallet.isMasterWallet() ? wallet.getMasterWallet() : wallet;
             PersistenceType persistenceType = PersistenceType.DB;
             Persistence persistence = persistenceType.getInstance();
-            Storage storage = AppServices.get().getOpenWallets().get(exportedWallet);
             tempDir = Files.createTempDirectory("sparrow").toFile();
             File tempFile = new File(tempDir, exportedWallet.getName() + "." + persistenceType.getExtension());
-            Storage tempStorage = new Storage(persistence, tempFile);
+            tempStorage = new Storage(persistence, tempFile);
             tempStorage.setKeyDeriver(storage.getKeyDeriver());
             tempStorage.setEncryptionPubKey(storage.getEncryptionPubKey());
 
@@ -55,6 +59,9 @@ public class Sparrow implements WalletImport, WalletExport {
             log.error("Error exporting Sparrow wallet file", e);
             throw new ExportException("Error exporting Sparrow wallet file", e);
         } finally {
+            if(tempStorage != null && !tempStorage.isClosed()) {
+                tempStorage.closeAndWait();
+            }
             deleteTempDirectory(tempDir);
         }
     }

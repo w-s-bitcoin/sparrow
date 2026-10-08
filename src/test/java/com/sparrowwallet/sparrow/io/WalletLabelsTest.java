@@ -7,8 +7,10 @@ import com.sparrowwallet.drongo.ExtendedKey;
 import com.sparrowwallet.drongo.KeyDerivation;
 import com.sparrowwallet.drongo.KeyPurpose;
 import com.sparrowwallet.drongo.Network;
+import com.sparrowwallet.drongo.OutputDescriptor;
 import com.sparrowwallet.drongo.Utils;
 import com.sparrowwallet.drongo.address.Address;
+import com.sparrowwallet.drongo.crypto.ECKey;
 import com.sparrowwallet.drongo.policy.Policy;
 import com.sparrowwallet.drongo.policy.PolicyType;
 import com.sparrowwallet.drongo.protocol.Script;
@@ -28,6 +30,7 @@ import org.junit.jupiter.api.io.TempDir;
 import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
 import java.io.File;
+import java.math.BigInteger;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Path;
 import java.util.Date;
@@ -59,6 +62,31 @@ public class WalletLabelsTest {
     @AfterAll
     public static void tearDown() {
         System.clearProperty(SparrowWallet.APP_HOME_PROPERTY);
+    }
+
+    @Test
+    public void singleKeyLabelsUsePublicOriginWithoutDerivation() throws Exception {
+        Wallet wallet = Wallet.fromSingleKey("Single key labels", ECKey.fromPrivate(BigInteger.ONE), ScriptType.P2WPKH);
+        WalletNode node = wallet.getFreshNode(KeyPurpose.RECEIVE);
+        node.setLabel("Reusable savings address");
+        Storage storage = new Storage(PersistenceType.JSON, new File(tempHome.toFile(), "single-key-labels.json"));
+        WalletForm walletForm = new WalletForm(storage, wallet);
+        WalletLabels walletLabels = new WalletLabels(List.of(walletForm));
+        ByteArrayOutputStream output = new ByteArrayOutputStream();
+        walletLabels.exportWallet(wallet, output, null);
+        JsonObject address = parseLabels(output).get("addr:" + node.getAddress());
+        Assertions.assertFalse(address.has("keypath"));
+        Assertions.assertEquals(OutputDescriptor.getOutputDescriptor(wallet).toString(true, false, false), address.get("origin").getAsString());
+        Assertions.assertFalse(output.toString(StandardCharsets.UTF_8).contains(ECKey.fromPrivate(BigInteger.ONE).getPrivateKeyEncoded().toString()));
+
+        node.setLabel("Current address label");
+        Wallet otherWallet = Wallet.fromSingleKey("Other single key", ECKey.fromPrivate(BigInteger.TWO), ScriptType.P2WPKH);
+        address.addProperty("origin", OutputDescriptor.getOutputDescriptor(otherWallet).toString(true, false, false));
+        walletLabels.importWallet(new ByteArrayInputStream(address.toString().getBytes(StandardCharsets.UTF_8)), null);
+        Assertions.assertEquals("Current address label", node.getLabel(), "A different raw public key must not match this wallet's label origin");
+
+        walletLabels.importWallet(new ByteArrayInputStream(output.toByteArray()), null);
+        Assertions.assertEquals("Reusable savings address", node.getLabel());
     }
 
     @Test

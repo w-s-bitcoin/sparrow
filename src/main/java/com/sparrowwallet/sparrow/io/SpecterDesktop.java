@@ -19,6 +19,10 @@ public class SpecterDesktop implements WalletImport, WalletExport {
 
     @Override
     public void exportWallet(Wallet wallet, OutputStream outputStream, String password) throws ExportException {
+        if(wallet.isSingleKeyWallet()) {
+            throw new ExportException(getName() + " export does not support single private key wallets. Use a public output descriptor.");
+        }
+
         try {
             SpecterWallet specterWallet = new SpecterWallet();
             specterWallet.label = wallet.getFullName();

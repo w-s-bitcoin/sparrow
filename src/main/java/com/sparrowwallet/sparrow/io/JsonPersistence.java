@@ -26,6 +26,7 @@ import com.sparrowwallet.drongo.wallet.BlockTransactionHashIndex;
 import com.sparrowwallet.drongo.wallet.DeterministicSeed;
 import com.sparrowwallet.drongo.wallet.Keystore;
 import com.sparrowwallet.drongo.wallet.MasterPrivateExtendedKey;
+import com.sparrowwallet.drongo.wallet.SingleKey;
 import com.sparrowwallet.drongo.wallet.UtxoMixData;
 import com.sparrowwallet.drongo.wallet.Wallet;
 import com.sparrowwallet.drongo.wallet.WalletNode;
@@ -360,6 +361,7 @@ public class JsonPersistence implements Persistence {
         gsonBuilder.registerTypeAdapter(SilentPaymentAddress.class, new SilentPaymentAddressDeserializer());
         gsonBuilder.registerTypeAdapter(SilentPaymentScanAddress.class, new SilentPaymentScanAddressSerializer());
         gsonBuilder.registerTypeAdapter(SilentPaymentScanAddress.class, new SilentPaymentScanAddressDeserializer());
+        gsonBuilder.registerTypeAdapter(SingleKey.class, new SingleKeyAdapter());
 
         //Reflection on any class outside this project fails at Gson adapter construction when running on the module path, unless its module opens the package to Gson
         //Blocking these classes here ensures classpath-based tests fail in the same way production does, ensuring custom serializers are registered above as necessary
@@ -421,6 +423,50 @@ public class JsonPersistence implements Persistence {
         @Override
         public JsonElement serialize(byte[] src, Type typeOfSrc, JsonSerializationContext context) {
             return new JsonPrimitive(Utils.bytesToHex(src));
+        }
+    }
+
+    private static class SingleKeyAdapter implements JsonSerializer<SingleKey>, JsonDeserializer<SingleKey> {
+        @Override
+        public JsonElement serialize(SingleKey singleKey, Type typeOfSrc, JsonSerializationContext context) {
+            JsonObject jsonObject = new JsonObject();
+            jsonObject.addProperty("compressed", singleKey.isCompressed());
+            if(singleKey.isEncrypted()) {
+                jsonObject.add("encryptedKey", context.serialize(singleKey.getEncryptedData()));
+            } else {
+                byte[] secret = singleKey.getSecretBytes();
+                try {
+                    jsonObject.add("privateKey", context.serialize(secret));
+                } finally {
+                    Arrays.fill(secret, (byte)0);
+                }
+            }
+            return jsonObject;
+        }
+
+        @Override
+        public SingleKey deserialize(JsonElement json, Type typeOfT, JsonDeserializationContext context) throws JsonParseException {
+            JsonObject jsonObject = json.getAsJsonObject();
+            if(!jsonObject.has("compressed") || jsonObject.has("privateKey") == jsonObject.has("encryptedKey")) {
+                throw new JsonParseException("Single private key must have a compression flag and exactly one private key representation");
+            }
+
+            boolean compressed = jsonObject.get("compressed").getAsBoolean();
+            if(jsonObject.has("encryptedKey")) {
+                EncryptedData encryptedData = context.deserialize(jsonObject.get("encryptedKey"), EncryptedData.class);
+                return new SingleKey(encryptedData, compressed);
+            }
+
+            byte[] secret = context.deserialize(jsonObject.get("privateKey"), byte[].class);
+            try {
+                return new SingleKey(secret, compressed);
+            } catch(IllegalArgumentException e) {
+                throw new JsonParseException("Invalid single private key", e);
+            } finally {
+                if(secret != null) {
+                    Arrays.fill(secret, (byte)0);
+                }
+            }
         }
     }
 
