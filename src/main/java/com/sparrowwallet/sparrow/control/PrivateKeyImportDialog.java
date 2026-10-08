@@ -38,26 +38,28 @@ public class PrivateKeyImportDialog extends Dialog<Wallet> {
         pane.getStylesheets().add(AppServices.class.getResource("dialog.css").toExternalForm());
         AppServices.setStageIcon(pane.getScene().getWindow());
         setTitle("Import Private Key");
-        pane.setHeaderText("Import a single private key");
+        pane.setHeaderText("Import Private Key");
         pane.setGraphic(new WalletModelImage(WalletModel.SEED));
 
         privateKey.setPromptText("Wallet Import Format (WIF)");
         privateKey.getStyleClass().add("fixed-width");
         privateKey.setId("importPrivateKey");
-        Button scan = new Button("", new Glyph(FontAwesome5.FONT_NAME, FontAwesome5.Glyph.CAMERA));
+        Glyph cameraGlyph = new Glyph(FontAwesome5.FONT_NAME, FontAwesome5.Glyph.CAMERA);
+        cameraGlyph.setFontSize(12);
+        Button scan = new Button("", cameraGlyph);
         scan.setTooltip(new Tooltip("Scan a WIF QR code"));
         scan.setOnAction(event -> {
             QRScanDialog dialog = new QRScanDialog();
             dialog.initOwner(pane.getScene().getWindow());
             dialog.showAndWait().ifPresent(result -> {
-                PrivateKeyImportScanHandler.handle(result, privateKey::setText, validationMessage::setText);
+                PrivateKeyImportScanHandler.handle(result, privateKey::setText, this::updateAddresses, message -> setValidationMessage(message, true));
                 resizeToContent();
             });
         });
         HBox keyInput = new HBox(5, privateKey, scan);
         HBox.setHgrow(privateKey, Priority.ALWAYS);
         Field keyField = new Field();
-        keyField.setText("Private key:");
+        keyField.setText("Private Key:");
         keyField.getInputs().add(keyInput);
         Fieldset fields = new Fieldset();
         fields.getChildren().add(keyField);
@@ -76,7 +78,6 @@ public class PrivateKeyImportDialog extends Dialog<Wallet> {
         validationMessage.setMinHeight(Region.USE_PREF_SIZE);
         validationMessage.visibleProperty().bind(validationMessage.textProperty().isNotEmpty());
         validationMessage.managedProperty().bind(validationMessage.visibleProperty());
-        validationMessage.getStyleClass().add("failure");
         confirmAddress.setWrapText(true);
         confirmAddress.setMinHeight(Region.USE_PREF_SIZE);
         addresses.setMinHeight(Region.USE_PREF_SIZE);
@@ -91,7 +92,10 @@ public class PrivateKeyImportDialog extends Dialog<Wallet> {
         privateKey.textProperty().addListener((observable, oldValue, newValue) -> updateAddresses());
         addressSelection.selectedToggleProperty().addListener((observable, oldValue, newValue) -> confirmAddress.setSelected(false));
         setResultConverter(button -> button == importType ? Wallet.fromSingleKey("Imported Private Key", parseKey(), (ScriptType)addressSelection.getSelectedToggle().getUserData()) : null);
-        setOnShown(event -> resizeToContent());
+        setOnShown(event -> {
+            resizeToContent();
+            Platform.runLater(privateKey::requestFocus);
+        });
         setOnHidden(event -> privateKey.clear());
         AppServices.onEscapePressed(pane.getScene(), () -> setResult(null));
         AppServices.moveToActiveWindowScreen(this);
@@ -112,7 +116,7 @@ public class PrivateKeyImportDialog extends Dialog<Wallet> {
         addresses.getChildren().clear();
         confirmAddress.setSelected(false);
         if(privateKey.getText().isBlank()) {
-            validationMessage.setText("Enter a WIF to see its candidate addresses on " + Network.get() + ".");
+            setValidationMessage("Enter a WIF to see its candidate addresses on " + Network.get() + ".", false);
             return;
         }
 
@@ -122,18 +126,18 @@ public class PrivateKeyImportDialog extends Dialog<Wallet> {
         } catch(Exception e) {
             // Never display parsing exceptions: they may contain secret input.
             if(e.getMessage() != null && e.getMessage().startsWith("Invalid version ")) {
-                validationMessage.setText("This WIF is for a different Bitcoin network. The current network is " + Network.get() + ".");
+                setValidationMessage("This WIF is for a different Bitcoin network. The current network is " + Network.get() + ".", true);
             } else if("Invalid checksum".equals(e.getMessage())) {
-                validationMessage.setText("The WIF checksum is invalid. Check that the entire private key was entered correctly.");
+                setValidationMessage("The WIF checksum is invalid. Check that the entire private key was entered correctly.", true);
             } else if(e.getMessage() != null && e.getMessage().contains("secp256k1 range")) {
-                validationMessage.setText("This WIF contains an invalid private key.");
+                setValidationMessage("This WIF contains an invalid private key.", true);
             } else {
-                validationMessage.setText("Invalid WIF. Enter one valid WIF private key (51 or 52 Base58 characters). Seeds, hex keys and encrypted keys are not supported here.");
+                setValidationMessage("Invalid WIF. Enter one valid WIF private key (51 or 52 Base58 characters). Seeds, hex keys and encrypted keys are not supported here.", true);
             }
             return;
         }
 
-        validationMessage.setText(key.isCompressed() ? "" : "This WIF uses an uncompressed public key; only Legacy (P2PKH) is supported.");
+        setValidationMessage(key.isCompressed() ? "" : "This WIF uses an uncompressed public key; only Legacy (P2PKH) is supported.", false);
         List<ScriptType> scriptTypes = key.isCompressed() ? List.of(ScriptType.P2PKH, ScriptType.P2SH_P2WPKH, ScriptType.P2WPKH, ScriptType.P2TR) : List.of(ScriptType.P2PKH);
         for(ScriptType scriptType : scriptTypes) {
             RadioButton select = new RadioButton(scriptType.getDescription());
@@ -146,6 +150,14 @@ public class PrivateKeyImportDialog extends Dialog<Wallet> {
             VBox.setMargin(address, new Insets(0, 0, 0, 25));
             addresses.getChildren().add(new VBox(4, select, address));
         }
+    }
+
+    private void setValidationMessage(String message, boolean error) {
+        validationMessage.getStyleClass().remove("failure");
+        if(error) {
+            validationMessage.getStyleClass().add("failure");
+        }
+        validationMessage.setText(message);
     }
 
     private void resizeToContent() {

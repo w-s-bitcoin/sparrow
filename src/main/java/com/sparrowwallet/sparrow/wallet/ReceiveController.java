@@ -225,8 +225,11 @@ public class ReceiveController extends WalletFormController implements Initializ
             long count = currentOutputs.size();
             BlockTransactionHashIndex lastUsedReference = currentOutputs.stream().skip(count - 1).findFirst().get();
             lastUsed.setText(lastUsedReference.getHeight() <= 0 ? "Unconfirmed Transaction" : (lastUsedReference.getDate() == null ? "Unknown" : DATE_FORMAT.format(lastUsedReference.getDate())));
-            lastUsed.setGraphic(getWarningGlyph());
-            if(!address.getStyleClass().contains("error")) {
+            boolean singleKey = getWalletForm().getWallet().isSingleKeyWallet();
+            lastUsed.setGraphic(singleKey ? null : getWarningGlyph());
+            if(singleKey) {
+                address.getStyleClass().remove("error");
+            } else if(!address.getStyleClass().contains("error")) {
                 address.getStyleClass().add("error");
             }
         } else {

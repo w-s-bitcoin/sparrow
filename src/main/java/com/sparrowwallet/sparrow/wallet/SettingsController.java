@@ -357,7 +357,7 @@ public class SettingsController extends WalletFormController implements Initiali
         singleKeyAddressFieldset.setVisible(wallet.isSingleKeyWallet());
         addAccount.setVisible(!wallet.isSingleKeyWallet());
         if(wallet.isSingleKeyWallet()) {
-            singleKeyType.setText(wallet.getKeystores().getFirst().getSingleKey() == null ? "Single public key (watch only)" : "Single private key");
+            singleKeyType.setText(wallet.getKeystores().getFirst().getSingleKey() == null ? "Single Public Key (Watch Only)" : "Single Private Key");
             singleKeyAddress.setText(wallet.getFreshNode(KeyPurpose.RECEIVE).getAddress().toString());
             singleKeyAddress.setMaxWidth(Double.MAX_VALUE);
         }

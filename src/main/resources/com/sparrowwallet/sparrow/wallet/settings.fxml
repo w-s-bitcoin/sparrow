@@ -43,8 +43,8 @@
                         </ComboBox>
                         <HelpLabel helpText="Single signature wallets use a single keystore (hardware wallet or seed).\nMultisignature wallets require multiple keystores, of which a certain number need to sign.\nSilent Payments wallets also use a single keystore and can receive privately to a reusable address." />
                     </Field>
-                    <Field fx:id="singleKeyTypeField" text="Wallet type:" visible="false" managed="false">
-                        <Label fx:id="singleKeyType" text="Single private key" />
+                    <Field fx:id="singleKeyTypeField" text="Wallet Type:" visible="false" managed="false">
+                        <Label fx:id="singleKeyType" text="Single Private Key" />
                     </Field>
                     <Field text="Script Type:">
                         <ComboBox fx:id="scriptType">
@@ -106,7 +106,7 @@
                         <Button fx:id="showDescriptor" text="Show..." onAction="#showDescriptor" />
                     </Field>
                 </Fieldset>
-                <Fieldset fx:id="singleKeyAddressFieldset" inputGrow="SOMETIMES" text="Reusable address" visible="false" managed="false">
+                <Fieldset fx:id="singleKeyAddressFieldset" inputGrow="SOMETIMES" text="Reusable Address" visible="false" managed="false">
                     <Field text="Address:">
                         <CopyableLabel fx:id="singleKeyAddress" styleClass="fixed-width" />
                     </Field>

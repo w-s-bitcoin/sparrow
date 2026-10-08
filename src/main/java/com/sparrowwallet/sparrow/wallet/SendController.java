@@ -255,6 +255,11 @@ public class SendController extends WalletFormController implements Initializabl
     public void initializeView() {
         addressReuse.setVisible(getWalletForm().getWallet().isSingleKeyWallet());
         addressReuse.setManaged(addressReuse.isVisible());
+        if(getWalletForm().getWallet().isSingleKeyWallet()) {
+            String privacyUnavailable = "Privacy optimization requires multiple wallet addresses. This wallet reuses one address for receiving and change.";
+            privacyToggle.setTooltip(new Tooltip(privacyUnavailable));
+            optimizationHelp.setHelpText(privacyUnavailable);
+        }
         addValidation();
 
         addPaymentTab();
@@ -1064,6 +1069,10 @@ public class SendController extends WalletFormController implements Initializabl
     }
 
     private OptimizationStrategy getPreferredOptimizationStrategy() {
+        if(getWalletForm().getWallet().isSingleKeyWallet()) {
+            return OptimizationStrategy.EFFICIENCY;
+        }
+
         OptimizationStrategy optimizationStrategy = Config.get().getSendOptimizationStrategy();
         if(StandardAccount.isWhirlpoolMixAccount(getWalletForm().getWallet().getStandardAccountType()) && !overrideOptimizationStrategy) {
             optimizationStrategy = OptimizationStrategy.PRIVACY;
@@ -1075,6 +1084,9 @@ public class SendController extends WalletFormController implements Initializabl
     private void setPreferredOptimizationStrategy() {
         OptimizationStrategy optimizationStrategy = getPreferredOptimizationStrategy();
         optimizationToggleGroup.selectToggle(optimizationStrategy == OptimizationStrategy.PRIVACY ? privacyToggle : efficiencyToggle);
+        if(getWalletForm().getWallet().isSingleKeyWallet()) {
+            privacyToggle.setDisable(true);
+        }
         transactionDiagram.setOptimizationStrategy(optimizationStrategy);
     }
 
@@ -1128,7 +1140,7 @@ public class SendController extends WalletFormController implements Initializabl
         setInputFieldsDisabled(false, false);
 
         efficiencyToggle.setDisable(false);
-        privacyToggle.setDisable(false);
+        privacyToggle.setDisable(getWalletForm().getWallet().isSingleKeyWallet());
 
         notificationButton.setVisible(false);
         createButton.setDefaultButton(true);

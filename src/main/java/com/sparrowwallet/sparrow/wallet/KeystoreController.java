@@ -257,7 +257,7 @@ public class KeystoreController extends WalletFormController implements Initiali
 
     private void initializeSingleKeyView() {
         selectSourcePane.setVisible(false);
-        type.setText(keystore.getSingleKey() == null ? "Single public key (watch only)" : "Single private key");
+        type.setText(keystore.getSingleKey() == null ? "Single Public Key (Watch Only)" : "Single Private Key");
         type.setGraphic(getTypeIcon(keystore));
         label.setText(keystore.getLabel());
         label.textProperty().addListener(labelChangeListener);
@@ -433,7 +433,7 @@ public class KeystoreController extends WalletFormController implements Initiali
             case SW_SEED:
                 return "Software Wallet";
             case SW_PRIVATE_KEY:
-                return "Single private key";
+                return "Single Private Key";
             case SW_WATCH:
             default:
                 return "Watch Only Wallet";

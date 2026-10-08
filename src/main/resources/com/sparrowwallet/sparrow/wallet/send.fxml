@@ -31,9 +31,6 @@
 <BorderPane stylesheets="@send.css, @wallet.css, @../script.css, @../general.css" styleClass="wallet-pane" xmlns="http://javafx.com/javafx/10.0.2-internal" xmlns:fx="http://javafx.com/fxml/1" fx:controller="com.sparrowwallet.sparrow.wallet.SendController">
     <center>
         <VBox>
-            <Label fx:id="addressReuse" text="Single private key: change returns to this wallet's reusable address. Address reuse links your transactions." wrapText="true">
-                <padding><Insets left="25" right="25" top="10" bottom="5" /></padding>
-            </Label>
             <GridPane styleClass="send-form" hgap="10.0" vgap="10.0">
                 <padding>
                     <Insets left="25.0" right="25.0" top="25.0" />
@@ -48,9 +45,14 @@
                 </rowConstraints>
                 <BorderPane GridPane.columnIndex="0" GridPane.rowIndex="0" GridPane.columnSpan="3">
                     <top>
-                        <Form styleClass="title-form">
-                            <Fieldset inputGrow="ALWAYS" text="Send"/>
-                        </Form>
+                        <VBox>
+                            <Form styleClass="title-form">
+                                <Fieldset inputGrow="ALWAYS" text="Send"/>
+                            </Form>
+                            <Label fx:id="addressReuse" text="Change returns to this wallet's reusable address. Address reuse makes transactions easier to link." wrapText="true" minHeight="-Infinity">
+                                <VBox.margin><Insets left="5" right="5" bottom="8" /></VBox.margin>
+                            </Label>
+                        </VBox>
                     </top>
                     <center>
                         <TabPane fx:id="paymentTabs" side="RIGHT" styleClass="initial" />
