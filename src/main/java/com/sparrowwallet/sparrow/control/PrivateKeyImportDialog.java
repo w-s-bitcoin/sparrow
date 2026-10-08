@@ -286,8 +286,13 @@ public class PrivateKeyImportDialog extends Dialog<Wallet> {
         AddressActivityService service = new AddressActivityService(candidateRows.keySet(), since);
         balanceService = service;
         Date checkedSince = since;
+        checkBalances.setMaxHeight(checkBalances.getHeight());
         ProgressIndicator progress = new ProgressIndicator(-1);
         progress.getStyleClass().add("button-progress");
+        //CSS scaling only changes the drawing, not the size reserved by the button's layout.
+        progress.setMinSize(0, 0);
+        progress.setPrefSize(24, 24);
+        progress.setMaxSize(24, 24);
         checkBalances.setGraphic(progress);
         checkBalances.setDisable(true);
         balanceStatus.getStyleClass().remove("failure");
